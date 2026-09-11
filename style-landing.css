@@ -127,11 +127,25 @@ a { color: inherit; }
 .navbar__right { flex-shrink: 0; }
 
 .navbar__login {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
   text-decoration: none;
-  color: var(--ink-000);
+  color: var(--ink-200);
   font-family: var(--font-display);
   font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(248, 250, 252, 0.04);
+  transition: all 0.2s ease;
+}
+
+.navbar__login:hover {
+  color: var(--ink-000);
+  border-color: var(--line-strong);
+  background: rgba(248, 250, 252, 0.08);
 }
 
 /* ============ HERO ============ */
