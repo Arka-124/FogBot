@@ -15,7 +15,7 @@
     "mysql2": "^3.24.4",
     "three": "^0.186.0"
   },
-  "description": "",
+  "description": "Autonomous Leading Pilot Rover & IoT Command Center for Safe Operation of Mine Vehicles in Dense Fog | Smart India Hackathon 2026 (SIH26007 - NMDC)",
   "main": "server.js",
   "engines": {
     "node": ">=18.0.0"
@@ -24,7 +24,20 @@
     "type": "git",
     "url": "git+https://github.com/Arka-124/FogBot.git"
   },
-  "keywords": [],
+  "keywords": [
+    "smart-india-hackathon-2026",
+    "sih2026",
+    "nmdc",
+    "bailadila-mine",
+    "autonomous-rover",
+    "sensor-fusion",
+    "digital-twin",
+    "threejs",
+    "iot-dashboard",
+    "mining-safety",
+    "robotics",
+    "lidar"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
