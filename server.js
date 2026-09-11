@@ -16,26 +16,50 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static frontend files (index.html, style.css, script.js, assets)
 app.use(express.static(path.join(__dirname)));
 
-// MySQL Database Connection Pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'login_portal',
-  port: Number(process.env.DB_PORT) || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
+// MySQL Database Connection Configuration (Supports local .env, Docker, and Cloud platforms like Railway/Render)
+const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
+  ? { uri: process.env.DATABASE_URL || process.env.MYSQL_URL }
+  : {
+      host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+      user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+      password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
+      database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'login_portal',
+      port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    };
 
-// Test database connection on startup
+const pool = mysql.createPool(poolConfig);
+
+// Initialize and verify database on startup (auto-provisions schema on fresh cloud deployments)
 (async () => {
   try {
     const connection = await pool.getConnection();
-    console.log(`[Database] Connected to MySQL database "${process.env.DB_NAME || 'login_portal'}" successfully.`);
+    const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || 'login_portal';
+    console.log(`[Database] Connected to MySQL database "${dbName}" successfully.`);
+    
+    // Auto-create users table if it does not exist (e.g. on newly provisioned cloud databases)
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id VARCHAR(50) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Ensure default demo admin account exists
+    await connection.query(`
+      INSERT INTO users (user_id, password_hash)
+      VALUES ('admin', 'password123')
+      ON DUPLICATE KEY UPDATE user_id = user_id
+    `);
+
+    console.log('[Database] Schema verified: users table and demo credentials ready.');
     connection.release();
   } catch (err) {
-    console.warn(`[Database Warning] Could not connect to MySQL: ${err.message}`);
+    console.warn(`[Database Warning] Could not connect or initialize MySQL: ${err.message}`);
     console.warn('[Database Warning] Verify MySQL is running or run `docker compose up -d` to start the database.');
   }
 })();

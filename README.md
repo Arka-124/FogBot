@@ -72,7 +72,34 @@ npm start
 
 ### 6. Access the Application
 - **Login Portal**: Open [http://localhost:3000](http://localhost:3000)
-- **FogBot 3D Digital Twin Overview**: Open [http://localhost:3000/landing](http://localhost:3000/landing)
+- **FogBot 3D Digital Twin Overview**: Open [http://localhost:3000/landing.html](http://localhost:3000/landing.html)
+
+---
+
+## 🌐 Deploying to Cloud (Railway & Render)
+
+### Option A: Railway (Recommended — 1-Click Node + MySQL)
+Railway offers native MySQL database provisioning with zero manual SQL configuration.
+
+1. Go to [railway.app](https://railway.app) and sign in with GitHub.
+2. Click **New Project** &rarr; **Deploy from GitHub repo** &rarr; Select `FogBot`.
+3. In the project canvas, click **+ New** &rarr; **Database** &rarr; **Add MySQL**.
+4. In your `FogBot` web service &rarr; **Variables**, add your reCAPTCHA keys:
+   - `RECAPTCHA_SITE_KEY`: `6LekebUtAAAAAEiqVaTTW15PdF-Z2ZH47YNGUalw`
+   - `RECAPTCHA_SECRET_KEY`: `6LekebUtAAAAADmjFOUUelkHfkD8mSFyUPKGUCBL`
+5. Railway automatically links the MySQL database variables (`MYSQLHOST`, `MYSQLUSER`, `MYSQLPASSWORD`, `MYSQLDATABASE`), and `server.js` auto-creates the schema and demo user on boot!
+6. Click **Generate Domain** under Settings to get your live `https://...up.railway.app` URL.
+
+### Option B: Render
+1. Go to [render.com](https://render.com) and connect your GitHub account.
+2. Click **New +** &rarr; **Blueprint** (it detects `render.yaml`) OR **Web Service**:
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+3. Under **Environment Variables**, provide your MySQL credentials and reCAPTCHA keys:
+   - `RECAPTCHA_SITE_KEY`: `6LekebUtAAAAAEiqVaTTW15PdF-Z2ZH47YNGUalw`
+   - `RECAPTCHA_SECRET_KEY`: `6LekebUtAAAAADmjFOUUelkHfkD8mSFyUPKGUCBL`
+   - `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`: (from your cloud MySQL provider such as Aiven, Clever Cloud, or TiDB Cloud).
+4. Click **Deploy Web Service** to obtain your live `https://...onrender.com` URL.
 
 ---
 

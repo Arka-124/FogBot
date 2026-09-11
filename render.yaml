@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: fogbot-portal
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.0.0
+      - key: RECAPTCHA_SITE_KEY
+        value: 6LekebUtAAAAAEiqVaTTW15PdF-Z2ZH47YNGUalw
+      - key: RECAPTCHA_SECRET_KEY
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: login_portal
+      - key: DB_PORT
+        value: "3306"
