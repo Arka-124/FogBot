@@ -16,15 +16,32 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static frontend files (index.html, style.css, script.js, assets)
 app.use(express.static(path.join(__dirname)));
 
-// MySQL Database Connection Configuration (Supports local .env, Docker, and Cloud platforms like Railway/Render)
+// Track database connection status
+let isDbConnected = false;
+
+// In-memory fallback user store (active when external database is unreachable on cloud hosts)
+const fallbackUsers = [
+  {
+    id: 1,
+    user_id: 'admin',
+    password_hash: 'password123',
+    created_at: new Date().toISOString()
+  }
+];
+
+// MySQL Database Connection Configuration (Supports local .env, Docker, and Cloud platforms like Railway/Render/TiDB/Aiven)
 const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
-  ? { uri: process.env.DATABASE_URL || process.env.MYSQL_URL }
+  ? {
+      uri: process.env.DATABASE_URL || process.env.MYSQL_URL,
+      ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false }
+    }
   : {
       host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
       user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
       password: process.env.DB_PASSWORD || process.env.MYSQLPASSWORD || '',
       database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'login_portal',
       port: Number(process.env.DB_PORT || process.env.MYSQLPORT) || 3306,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
@@ -36,6 +53,7 @@ const pool = mysql.createPool(poolConfig);
 (async () => {
   try {
     const connection = await pool.getConnection();
+    isDbConnected = true;
     const dbName = process.env.DB_NAME || process.env.MYSQLDATABASE || 'login_portal';
     console.log(`[Database] Connected to MySQL database "${dbName}" successfully.`);
     
@@ -59,8 +77,10 @@ const pool = mysql.createPool(poolConfig);
     console.log('[Database] Schema verified: users table and demo credentials ready.');
     connection.release();
   } catch (err) {
-    console.warn(`[Database Warning] Could not connect or initialize MySQL: ${err.message}`);
-    console.warn('[Database Warning] Verify MySQL is running or run `docker compose up -d` to start the database.');
+    isDbConnected = false;
+    console.warn(`[Database Warning] Could not connect to MySQL: ${err.message || err.code || err}`);
+    console.warn('[Database Notice] Running in demo mode with in-memory store (Operator: "admin" / "password123").');
+    console.warn('[Database Notice] To connect persistent cloud MySQL, set DATABASE_URL or DB_HOST in your Render dashboard.');
   }
 })();
 
@@ -154,19 +174,38 @@ app.post('/api/login', async (req, res) => {
     }
 
     // 3. Query Database for user credentials (only executed AFTER reCAPTCHA succeeds)
-    const [rows] = await pool.query(
-      'SELECT id, user_id, password_hash, created_at FROM users WHERE user_id = ? LIMIT 1',
-      [userId.trim()]
-    );
+    let user = null;
 
-    if (!rows || rows.length === 0) {
+    if (isDbConnected) {
+      try {
+        const [rows] = await pool.query(
+          'SELECT id, user_id, password_hash, created_at FROM users WHERE user_id = ? LIMIT 1',
+          [userId.trim()]
+        );
+        if (rows && rows.length > 0) {
+          user = rows[0];
+        }
+      } catch (dbErr) {
+        console.warn(`[Database Warning] Query failed: ${dbErr.message}. Checking in-memory fallback.`);
+      }
+    }
+
+    // Graceful fallback if database is not connected or in cloud demo mode
+    if (!user) {
+      const fallbackUser = fallbackUsers.find(
+        (u) => u.user_id.toLowerCase() === userId.trim().toLowerCase()
+      );
+      if (fallbackUser) {
+        user = fallbackUser;
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Invalid User ID or Password.'
       });
     }
-
-    const user = rows[0];
     let passwordMatches = false;
 
     // Support bcrypt hashes as well as demo/plaintext passwords

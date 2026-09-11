@@ -12,6 +12,8 @@ services:
         value: 6LekebUtAAAAAEiqVaTTW15PdF-Z2ZH47YNGUalw
       - key: RECAPTCHA_SECRET_KEY
         sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: DB_HOST
         sync: false
       - key: DB_USER
