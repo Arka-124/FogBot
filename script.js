@@ -149,7 +149,7 @@
           setTimeout(function () {
             btnText.textContent = 'Redirecting to Rover Telemetry...';
             setTimeout(function () {
-              window.location.href = 'landing.html';
+              window.location.href = 'index.html';
             }, 1200);
           }, 1500);
 

@@ -83,10 +83,17 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * Route to view the FogBot system overview / landing page
+ * Page Routes
+ * - GET / -> index.html (Served automatically via static middleware: FogBot 3D Digital Twin)
+ * - GET /login -> login.html (Operator Login Portal)
+ * - GET /landing -> redirects to /
  */
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
 app.get('/landing', (req, res) => {
-  res.sendFile(path.join(__dirname, 'landing.html'));
+  res.redirect('/');
 });
 
 /**
@@ -200,8 +207,8 @@ app.post('/api/login', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(` FogBot Login Portal Server Running on Port ${PORT}`);
-  console.log(` URL: http://localhost:${PORT}`);
-  console.log(` Overview Page: http://localhost:${PORT}/landing`);
+  console.log(` Overview Page: http://localhost:${PORT}/ (index.html)`);
+  console.log(` Login Portal:  http://localhost:${PORT}/login (login.html)`);
   console.log(`====================================================`);
 });
 

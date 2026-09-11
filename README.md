@@ -11,7 +11,7 @@ A secure, production-ready, clone-and-run login portal built for the **FogBot Au
 - **Lightweight & High-Performance**: Vanilla HTML5, CSS3, and modern JavaScript frontend with zero front-end build steps or bundle overhead.
 - **Secure Backend**: Express.js REST API using parameterized queries via `mysql2/promise` to prevent SQL injection, and `bcryptjs` support for secure password hashing.
 - **Containerized MySQL**: Ready-to-run `docker-compose.yml` and `init.sql` schema for instant database provisioning on any machine.
-- **Integrated System Overview**: Seamless access to the FogBot 3D Digital Twin landing page via `/landing`.
+- **Integrated System Overview**: 3D Digital Twin landing page served at root (`/` / `index.html`) with operator access to the login portal (`/login` / `login.html`).
 
 ---
 
@@ -19,7 +19,7 @@ A secure, production-ready, clone-and-run login portal built for the **FogBot Au
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Vanilla HTML5 (`index.html`), CSS3 (`style.css`), JavaScript (`script.js`) |
+| **Frontend** | Vanilla HTML5 (`index.html`, `login.html`), CSS3, JavaScript |
 | **Backend** | Node.js, Express.js (`server.js`) |
 | **Database** | MySQL 8.0 (`mysql2/promise` connection pool) |
 | **Verification** | Google reCAPTCHA v2 API |
@@ -71,8 +71,8 @@ npm start
 ```
 
 ### 6. Access the Application
-- **Login Portal**: Open [http://localhost:3000](http://localhost:3000)
-- **FogBot 3D Digital Twin Overview**: Open [http://localhost:3000/landing.html](http://localhost:3000/landing.html)
+- **FogBot 3D Digital Twin Overview**: Open [http://localhost:3000](http://localhost:3000) (served by `index.html`)
+- **Operator Login Portal**: Open [http://localhost:3000/login](http://localhost:3000/login) (served by `login.html`)
 
 ---
 
