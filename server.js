@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
 
 // Middleware
 app.use(cors());
@@ -33,7 +34,8 @@ const fallbackUsers = [
 const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
   ? {
       uri: process.env.DATABASE_URL || process.env.MYSQL_URL,
-      ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false }
+      ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false },
+      connectTimeout: 5000
     }
   : {
       host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
@@ -44,7 +46,8 @@ const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      connectTimeout: 5000
     };
 
 const pool = mysql.createPool(poolConfig);
@@ -95,11 +98,15 @@ app.get('/api/config', (req, res) => {
 });
 
 /**
- * GET /api/health
- * System health check
+ * GET /api/health and GET /healthz
+ * System health checks for cloud deployment monitors
  */
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
 });
 
 /**
@@ -243,11 +250,13 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`====================================================`);
-  console.log(` FogBot Login Portal Server Running on Port ${PORT}`);
-  console.log(` Overview Page: http://localhost:${PORT}/ (index.html)`);
-  console.log(` Login Portal:  http://localhost:${PORT}/login (login.html)`);
+  console.log(` FogBot Login Portal Server Running on http://${HOST}:${PORT}`);
+  console.log(` Port: ${PORT} | Host: ${HOST}`);
+  console.log(` Overview Page: http://${HOST}:${PORT}/ (index.html)`);
+  console.log(` Login Portal:  http://${HOST}:${PORT}/login (login.html)`);
+  console.log(` Health Check:  http://${HOST}:${PORT}/healthz`);
   console.log(`====================================================`);
 });
 
