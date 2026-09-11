@@ -1,104 +1,178 @@
+/**
+ * FogBot Login Portal — Client-side authentication & reCAPTCHA handler
+ */
+
 (function () {
   'use strict';
 
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // DOM Elements
+  const loginForm = document.getElementById('loginForm');
+  const userIdInput = document.getElementById('userId');
+  const passwordInput = document.getElementById('password');
+  const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+  const eyeIcon = document.getElementById('eyeIcon');
+  const submitBtn = document.getElementById('submitBtn');
+  const btnText = document.getElementById('btnText');
+  const feedbackBanner = document.getElementById('feedbackBanner');
 
-  /* ---------- Hero parallax (background scrolls slower than foreground) ---------- */
-  var heroScene = document.getElementById('heroScene');
-  var hero = document.getElementById('hero');
-  var scrollCue = document.querySelector('.scroll-cue');
-
-  function onScroll() {
-    var scrollY = window.scrollY;
-
-    if (!reduceMotion && heroScene && hero) {
-      var heroHeight = hero.offsetHeight;
-      if (scrollY < heroHeight) {
-        // background moves at ~0.4x the scroll speed
-        heroScene.style.transform = 'translateY(' + (scrollY * 0.4) + 'px)';
+  // Password visibility toggle
+  if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', function () {
+      const isPassword = passwordInput.getAttribute('type') === 'password';
+      passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+      
+      // Update icon
+      if (isPassword) {
+        eyeIcon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        `;
+        togglePasswordBtn.setAttribute('aria-label', 'Hide password');
+      } else {
+        eyeIcon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        `;
+        togglePasswordBtn.setAttribute('aria-label', 'Show password');
       }
-    }
+    });
+  }
 
-    if (scrollCue) {
-      var fadeDistance = 140;
-      var opacity = Math.max(0, 1 - scrollY / fadeDistance);
-      scrollCue.style.opacity = (opacity * 0.7).toFixed(2);
+  // Display Feedback Notification
+  function showFeedback(message, type = 'error') {
+    if (!feedbackBanner) return;
+
+    feedbackBanner.className = `feedback-banner is-${type}`;
+    const icon = type === 'success' 
+      ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    feedbackBanner.innerHTML = `${icon}<span>${escapeHtml(message)}</span>`;
+  }
+
+  function clearFeedback() {
+    if (!feedbackBanner) return;
+    feedbackBanner.className = 'feedback-banner';
+    feedbackBanner.innerHTML = '';
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Set loading state on submit button
+  function setLoading(loading) {
+    if (!submitBtn) return;
+    submitBtn.disabled = loading;
+    if (loading) {
+      submitBtn.classList.add('is-loading');
+      btnText.textContent = 'Verifying...';
+    } else {
+      submitBtn.classList.remove('is-loading');
+      btnText.textContent = 'Authenticate & Enter';
     }
   }
 
-  window.addEventListener('scroll', onScroll, { passive: true });
-  onScroll();
+  // Global callbacks for reCAPTCHA events
+  window.onRecaptchaSuccess = function (token) {
+    clearFeedback();
+  };
 
-  /* ---------- Scroll reveal ---------- */
-  var revealEls = document.querySelectorAll('.reveal');
+  window.onRecaptchaExpired = function () {
+    showFeedback('reCAPTCHA expired. Please verify again.', 'error');
+  };
 
-  if ('IntersectionObserver' in window && !reduceMotion) {
-    var revealObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          revealObserver.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.2 });
+  // Form Submission
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      clearFeedback();
 
-    revealEls.forEach(function (el) { revealObserver.observe(el); });
-  } else {
-    revealEls.forEach(function (el) { el.classList.add('is-visible'); });
-  }
+      const userId = userIdInput ? userIdInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
 
-  /* ---------- Stat count-up ---------- */
-  var statEls = document.querySelectorAll('.stat__value');
-
-  function animateCount(el) {
-    var target = parseFloat(el.getAttribute('data-target'));
-    var suffix = el.getAttribute('data-suffix') || '';
-    var duration = 1200;
-    var start = null;
-
-    if (reduceMotion) {
-      el.textContent = target + suffix;
-      return;
-    }
-
-    function step(timestamp) {
-      if (!start) start = timestamp;
-      var progress = Math.min((timestamp - start) / duration, 1);
-      var eased = 1 - Math.pow(1 - progress, 3);
-      var current = Math.round(target * eased);
-      el.textContent = current + suffix;
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
+      // 1. Client validation
+      if (!userId) {
+        showFeedback('Please enter your Operator User ID.', 'error');
+        if (userIdInput) userIdInput.focus();
+        return;
       }
-    }
-    window.requestAnimationFrame(step);
-  }
 
-  if ('IntersectionObserver' in window) {
-    var statObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          animateCount(entry.target);
-          statObserver.unobserve(entry.target);
+      if (!password) {
+        showFeedback('Please enter your Security Password.', 'error');
+        if (passwordInput) passwordInput.focus();
+        return;
+      }
+
+      // 2. Obtain reCAPTCHA response token
+      let recaptchaToken = '';
+      if (typeof grecaptcha !== 'undefined') {
+        recaptchaToken = grecaptcha.getResponse();
+      }
+
+      if (!recaptchaToken) {
+        showFeedback("Please complete the reCAPTCHA 'I'm not a robot' verification.", 'error');
+        return;
+      }
+
+      // 3. Submit credentials & token to backend
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: userId,
+            password: password,
+            recaptchaToken: recaptchaToken
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Successful login
+          showFeedback(data.message || 'Authentication successful! Access granted.', 'success');
+          btnText.textContent = 'ACCESS GRANTED';
+          submitBtn.style.background = 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)';
+          submitBtn.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.4)';
+
+          // Clear password input for security
+          if (passwordInput) passwordInput.value = '';
+
+          // Optional: forward to command overview or show authenticated status
+          setTimeout(function () {
+            btnText.textContent = 'Redirecting to Rover Telemetry...';
+            setTimeout(function () {
+              window.location.href = 'landing.html';
+            }, 1200);
+          }, 1500);
+
+        } else {
+          // Authentication or reCAPTCHA failure
+          showFeedback(data.message || 'Authentication failed. Please verify credentials.', 'error');
+          setLoading(false);
+
+          // Reset reCAPTCHA on failed attempt
+          if (typeof grecaptcha !== 'undefined') {
+            grecaptcha.reset();
+          }
         }
-      });
-    }, { threshold: 0.4 });
+      } catch (err) {
+        console.error('[Network Error]:', err);
+        showFeedback('Unable to connect to authentication server. Please check your connection.', 'error');
+        setLoading(false);
 
-    statEls.forEach(function (el) { statObserver.observe(el); });
-  } else {
-    statEls.forEach(animateCount);
+        if (typeof grecaptcha !== 'undefined') {
+          grecaptcha.reset();
+        }
+      }
+    });
   }
 
-  /* ---------- Live visibility ticker (demo placeholder) ----------
-     Replace this with a real value pushed from the dashboard telemetry
-     feed once available. For now it gently drifts to look "live". */
-  var visibilityEl = document.getElementById('visibilityValue');
-  if (visibilityEl) {
-    var current = parseInt(visibilityEl.textContent, 10) || 86;
-    setInterval(function () {
-      var drift = Math.round((Math.random() - 0.5) * 4);
-      current = Math.min(98, Math.max(60, current + drift));
-      visibilityEl.textContent = current;
-    }, 4000);
-  }
 })();

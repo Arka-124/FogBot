@@ -2,9 +2,30 @@
   "name": "fogbot",
   "version": "1.0.0",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "build:3d": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mysql2": "^3.24.4",
     "three": "^0.186.0"
-  }
+  },
+  "description": "",
+  "main": "rover3d.bundle.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arka-124/FogBot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Arka-124/FogBot/issues"
+  },
+  "homepage": "https://github.com/Arka-124/FogBot#readme"
 }
