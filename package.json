@@ -4,6 +4,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify",
     "build:3d": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify"
   },
   "dependencies": {
@@ -15,7 +16,10 @@
     "three": "^0.186.0"
   },
   "description": "",
-  "main": "rover3d.bundle.js",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Arka-124/FogBot.git"
