@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FogBot — AI-Guided Pilot Rover | SIH 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ NAVBAR ============ -->
+<header class="navbar">
+  <div class="navbar__left">
+    <span class="navbar__wordmark">FogBot</span>
+    <span class="navbar__divider" aria-hidden="true"></span>
+    <img src="assets/nmdc-logo.png" alt="NMDC" class="navbar__logo navbar__logo--nmdc">
+    <img src="assets/sih-logo.png" alt="Smart India Hackathon 2026" class="navbar__logo navbar__logo--sih">
+  </div>
+
+  <div class="navbar__center">
+    <span class="navbar__status-text">Bailadila Mine Condition&nbsp;: <span id="visibilityValue">86</span>% visibility</span>
+    <span class="live-pill"><span class="live-pill__dot" aria-hidden="true"></span>Live</span>
+  </div>
+
+  <div class="navbar__right">
+    <!-- Wire this to the real dashboard auth flow when the backend is ready -->
+    <a href="#" class="navbar__login">Login</a>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ SECTION 1 — HERO ============ -->
+  <section class="hero" id="hero">
+    <div class="hero__scene" id="heroScene" role="region" aria-label="Interactive 3D Digital Twin of FogBot Rover">
+      <div class="hero__radar"></div>
+      <div class="hero__rover" id="heroRover">
+        <!-- 3D Digital Twin of the Fog Vision Rover -->
+        <div class="digital-twin-container" id="digitalTwinContainer">
+          <div id="roverDigitalTwinMount" class="digital-twin-mount"></div>
+
+          <!-- Telemetry & Hazard Status Badges -->
+          <div class="digital-twin-badge digital-twin-badge--top-left">
+            <span class="digital-twin-badge__title">3D DIGITAL TWIN:</span> ROVER_01
+          </div>
+
+          <div class="digital-twin-badge digital-twin-badge--top-right">
+            <span class="digital-twin-beacon-dot" aria-hidden="true"></span>
+            <span class="digital-twin-badge__label">Rear Hazard Beacon:</span>
+            <span class="digital-twin-badge__status">PULSING</span>
+          </div>
+
+          <div class="digital-twin-hint" aria-hidden="true">
+            Drag to rotate &bull; Scroll to zoom
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero__overlay" aria-hidden="true"></div>
+
+    <div class="hero__content">
+      <h1 class="hero__title">FogBot</h1>
+      <p class="hero__tagline">Your eyes on the haul road, even when the fog isn&rsquo;t.</p>
+    </div>
+
+    <a href="#what" class="scroll-cue" aria-label="Scroll to explore">
+      <span>Scroll to explore</span>
+      <span class="scroll-cue__arrow">&darr;</span>
+    </a>
+  </section>
+
+  <!-- ============ SECTION 2 — WHAT FOGBOT IS ============ -->
+  <section class="split" id="what">
+    <div class="split__media reveal">
+      <div class="frame">
+        <!-- 
+          IMAGE REPLACEMENT:
+          To replace this SVG with an actual image:
+          1. Copy your image into the assets/ folder (e.g., assets/rover-real.png).
+          2. Comment out or delete the <svg> element below.
+          3. Uncomment the <img> tag:
+             <img src="assets/rover-real.png" alt="FogBot Autonomous Rover" class="frame__img">
+        -->
+        <img src="assets/rover-photo.png" alt="FogBot Autonomous Rover" class="frame__img">
+        <span class="frame__corner frame__corner--tl"></span>
+        <span class="frame__corner frame__corner--tr"></span>
+        <span class="frame__corner frame__corner--bl"></span>
+        <span class="frame__corner frame__corner--br"></span>
+      </div>
+    </div>
+    <div class="split__text reveal">
+      <h2>What FogBot is</h2>
+      <p>
+        FogBot is an AI-guided pilot rover built to solve one of NMDC&rsquo;s most persistent operational
+        challenges: monsoon fog that cuts visibility on Bailadila&rsquo;s haul roads to as little as 3&ndash;5
+        meters, costing the mine 50&ndash;60 operating days every year. Rather than retrofitting every dumper
+        truck, FogBot drives ahead of each vehicle at a fixed distance, fusing LiDAR, computer vision, and
+        proximity sensing to read the road in real time. When visibility drops, the system doesn&rsquo;t just
+        detect obstacles &mdash; it computes a live safety score, recommends a safe operating speed, and can
+        broadcast an emergency stop before risk becomes danger.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3 — THE PROBLEM, IN NUMBERS ============ -->
+  <section class="stats" id="numbers">
+    <h2 class="stats__heading reveal">The problem, in numbers</h2>
+    <div class="stats__strip">
+      <div class="stat reveal">
+        <span class="stat__value" data-target="3" data-suffix="&ndash;5m">3&ndash;5m</span>
+        <span class="stat__label">worst-case visibility during Bailadila&rsquo;s monsoon fog</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__value" data-target="60" data-suffix=" days/yr">60 days/yr</span>
+        <span class="stat__label">mining operations lost to fog conditions</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__value" data-target="37" data-suffix=" MTPA">37 MTPA</span>
+        <span class="stat__label">current output from the Bailadila Region</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__value" data-target="80" data-suffix=" MT">80 MT</span>
+        <span class="stat__label">NMDC&rsquo;s 2030 production target for the region</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4 — HOW FOGBOT WORKS ============ -->
+  <section class="how" id="how">
+    <h2 class="reveal">How FogBot works</h2>
+    <ol class="how__list">
+      <li class="how__step reveal">
+        <span class="how__index">1</span>
+        <div class="how__body">
+          <h3>Sense the road</h3>
+          <p>LiDAR, CV camera, IR + ultrasonic proximity, and GPS build a live picture of the haul road ahead.</p>
+        </div>
+      </li>
+      <li class="how__step reveal">
+        <span class="how__index">2</span>
+        <div class="how__body">
+          <h3>Know the risk</h3>
+          <p>Sensor fusion and an AI risk score track camera confidence as a live proxy for fog density.</p>
+        </div>
+      </li>
+      <li class="how__step reveal">
+        <span class="how__index">3</span>
+        <div class="how__body">
+          <h3>React instantly</h3>
+          <p>Adaptive safe-speed recommendations and an automatic fail-safe stop respond before risk becomes danger.</p>
+        </div>
+      </li>
+      <li class="how__step reveal">
+        <span class="how__index">4</span>
+        <div class="how__body">
+          <h3>Stay connected</h3>
+          <p>Live telemetry streams to the command dashboard, so dispatchers see exactly what FogBot sees.</p>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ SECTION 5 — WHY NOT JUST ADD SENSORS TO THE TRUCK ============ -->
+  <section class="callout" id="why">
+    <div class="callout__panel reveal">
+      <h2>Why not just add sensors to the truck?</h2>
+      <p>
+        Bailadila already runs a driver-assist system mounted on the trucks themselves. FogBot takes a
+        different approach: instead of asking a truck&rsquo;s own degraded visibility to somehow see through
+        fog, it puts dedicated sensing <em>ahead</em> of the vehicle &mdash; giving the driver a moving set of
+        eyes rather than a better version of the same view.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer">
+    <div class="site-footer__brands">
+      <img src="assets/nmdc-logo.png" alt="NMDC" class="site-footer__logo">
+      <img src="assets/sih-logo.png" alt="Smart India Hackathon 2026" class="site-footer__logo">
+    </div>
+    <div class="site-footer__meta">
+      <span>Problem Statement SIH26007</span>
+      <span class="site-footer__dot" aria-hidden="true">&bull;</span>
+      <span>Team Track Decoders</span>
+    </div>
+  </footer>
+
+</main>
+
+<script src="script.js"></script>
+<script src="rover3d.bundle.js"></script>
+</body>
+</html>

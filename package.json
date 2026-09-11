@@ -1,0 +1,10 @@
+{
+  "name": "fogbot",
+  "version": "1.0.0",
+  "scripts": {
+    "build:3d": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  }
+}
