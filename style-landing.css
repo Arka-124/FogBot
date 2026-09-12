@@ -450,11 +450,11 @@ a { color: inherit; }
 }
 
 .stat {
-  padding: 0 clamp(16px, 2.5vw, 32px);
+  padding: 20px clamp(18px, 2.5vw, 32px);
   border-left: 1px solid var(--line);
 }
 
-.stat:first-child { border-left: none; padding-left: 0; }
+.stat:first-child { border-left: none; }
 
 .stat__value {
   display: block;
@@ -502,9 +502,10 @@ a { color: inherit; }
 
 .how__step {
   display: flex;
-  gap: 24px;
-  padding-bottom: 40px;
+  gap: 20px;
+  padding-bottom: 32px;
   position: relative;
+  align-items: flex-start;
 }
 
 .how__step:last-child { padding-bottom: 0; }
@@ -513,6 +514,7 @@ a { color: inherit; }
   flex-shrink: 0;
   width: 40px;
   height: 40px;
+  border-radius: 6px;
   border: 1px solid var(--orange);
   color: var(--orange);
   font-family: var(--font-display);
@@ -523,6 +525,15 @@ a { color: inherit; }
   background: var(--bg-900);
   position: relative;
   z-index: 1;
+}
+
+.how__body {
+  flex: 1;
+  padding: 22px 32px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .how__body h3 {
@@ -541,9 +552,13 @@ a { color: inherit; }
 }
 
 .callout__panel {
-  border-left: 3px solid var(--orange);
-  padding: 8px 0 8px 28px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--orange);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 24px 34px;
   max-width: 68ch;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .callout__panel h2 { font-size: clamp(1.4rem, 2.6vw, 1.8rem); margin-bottom: 16px; }

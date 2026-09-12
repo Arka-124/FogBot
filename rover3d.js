@@ -36,11 +36,17 @@ export function initRoverDigitalTwin(options = {}) {
       const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
       scene.fog = new THREE.FogExp2(0xE2E8F0, density);
       if (floorMat) floorMat.color.setHex(0xE2E8F0);
+      if (fillLight) fillLight.color.setHex(0xFFFFFF);
+      if (dirLight) dirLight.intensity = 1.3;
+      if (ambientLight) ambientLight.intensity = 0.9;
     } else {
       scene.background = new THREE.Color(0x020617);
       const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
       scene.fog = new THREE.FogExp2(0x0F172A, density);
       if (floorMat) floorMat.color.setHex(0x090D16);
+      if (fillLight) fillLight.color.setHex(0xFFFFFF);
+      if (dirLight) dirLight.intensity = 1.4;
+      if (ambientLight) ambientLight.intensity = 0.85;
     }
   };
 
@@ -84,7 +90,7 @@ export function initRoverDigitalTwin(options = {}) {
   controls.target.set(0, 0.6, 0);
   controls.update();
 
-  // 3. LIGHTING
+  // 3. LIGHTING (Neutral, physically-accurate illumination with zero artificial blue spill)
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
   scene.add(ambientLight);
 
@@ -93,17 +99,18 @@ export function initRoverDigitalTwin(options = {}) {
   dirLight.castShadow = true;
   scene.add(dirLight);
 
-  const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.7);
+  // Soft neutral fill light (white/soft daylight, eliminates artificial blue floor reflection)
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.45);
   fillLight.position.set(-6, 6, -5);
   scene.add(fillLight);
 
-  // Status PointLight (Top Chassis Accent)
-  const statusLight = new THREE.PointLight(0x10b981, 2.5, 8);
+  // Status PointLight (Top Chassis Accent - localized range so it does not penetrate chassis to floor)
+  const statusLight = new THREE.PointLight(0x10b981, 1.8, 2.5);
   statusLight.position.set(0, 1.8, 0);
   scene.add(statusLight);
 
-  // 4. MINE GROUND GRID & ENVIRONMENT
-  const gridHelper = new THREE.GridHelper(20, 20, 0x0284c7, 0x1e293b);
+  // 4. MINE GROUND GRID & ENVIRONMENT (Subtle neutral slate grid)
+  const gridHelper = new THREE.GridHelper(20, 20, 0x64748b, 0x334155);
   gridHelper.position.y = -0.01;
   scene.add(gridHelper);
 
@@ -166,7 +173,7 @@ export function initRoverDigitalTwin(options = {}) {
   lidarBase.position.set(0, 1.7, 0.3);
   roverGroup.add(lidarBase);
 
-  const lidarHeadMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
+  const lidarHeadMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.85, roughness: 0.3 });
   const lidarHead = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 24), lidarHeadMat);
   lidarHead.position.set(0, 1.82, 0.3);
   roverGroup.add(lidarHead);
@@ -201,9 +208,9 @@ export function initRoverDigitalTwin(options = {}) {
   rightRedMesh.position.set(0.5, 0, -0.06);
   rearHazardGroup.add(rightRedMesh);
 
-  // Backward Projection Light Beam (Casts light toward trailing truck)
-  const rearHazardLight = new THREE.PointLight(0xf59e0b, 4, 10);
-  rearHazardLight.position.set(0, 0.65, -1.6);
+  // Backward Projection Light Beam (Casts amber/red warning toward trailing truck)
+  const rearHazardLight = new THREE.PointLight(0xf59e0b, 2.5, 4.5);
+  rearHazardLight.position.set(0, 0.72, -1.35);
   scene.add(rearHazardLight);
 
   // F. Roof Strobe Light
@@ -237,7 +244,7 @@ export function initRoverDigitalTwin(options = {}) {
     strobeMat.transparent = true;
 
     // Projecting Light Intensity
-    rearHazardLight.intensity = flashPulse * 5;
+    rearHazardLight.intensity = flashPulse * 2.5;
 
     // Dynamic Status & Risk Colors
     let activeColor = 0x10b981; // Green

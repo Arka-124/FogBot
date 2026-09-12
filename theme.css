@@ -25,8 +25,10 @@ html[data-theme="light"] {
   --orange-light: #F97316;
   --orange-glow: rgba(234, 88, 12, 0.25);
 
-  --green: #16A34A;
-  --green-glow: rgba(22, 163, 74, 0.25);
+  --green: #15803D;
+  --green-dark: #166534;
+  --green-glow: #15803D;      /* Solid dark green for crisp typography */
+  --green-subtle: rgba(21, 128, 61, 0.10);
   --sky: #0284C7;
   --cyan: #0284C7;
   --danger: #DC2626;
@@ -131,6 +133,21 @@ html[data-theme="light"] .feedback-banner.is-success {
   color: #15803D;
 }
 
+html[data-theme="light"] .status-badge {
+  background: rgba(21, 128, 61, 0.08);
+  border-color: rgba(21, 128, 61, 0.28);
+}
+
+html[data-theme="light"] .status-badge__text {
+  color: #15803D !important;
+  font-weight: 700;
+}
+
+html[data-theme="light"] .status-badge__dot {
+  background: #15803D !important;
+  box-shadow: 0 0 6px rgba(21, 128, 61, 0.5) !important;
+}
+
 /* ---------------- LIGHT THEME: LANDING PAGE (index.html) ---------------- */
 html[data-theme="light"] .navbar {
   background: rgba(255, 255, 255, 0.92);
@@ -163,14 +180,43 @@ html[data-theme="light"] .badge {
   color: var(--orange);
 }
 
+html[data-theme="light"] .live-pill {
+  background: rgba(21, 128, 61, 0.10);
+  border: 1px solid rgba(21, 128, 61, 0.28);
+  color: #15803D;
+}
+
+html[data-theme="light"] .live-pill__dot {
+  background: #15803D;
+}
+
 html[data-theme="light"] .stat,
 html[data-theme="light"] .feature-card,
-html[data-theme="light"] .problem-card,
-html[data-theme="light"] .callout__panel,
-html[data-theme="light"] .how__body {
+html[data-theme="light"] .problem-card {
   background: #FFFFFF;
   border-color: var(--panel-border);
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme="light"] .stat__value {
+  color: #15803D !important;
+}
+
+html[data-theme="light"] .how__body {
+  background: #FFFFFF;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  padding: 22px 32px;
+}
+
+html[data-theme="light"] .callout__panel {
+  background: #FFFFFF;
+  border: 1px solid var(--panel-border);
+  border-left: 4px solid var(--orange);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  padding: 24px 34px;
 }
 
 html[data-theme="light"] .stat__label,
@@ -296,6 +342,30 @@ html[data-theme="light"] .lidar-badge {
   background: rgba(255, 255, 255, 0.9);
   border-color: var(--line);
   color: var(--ink-100);
+}
+
+html[data-theme="light"] [style*="color: var(--green)"],
+html[data-theme="light"] [style*="color:var(--green)"],
+html[data-theme="light"] .telem-item__val[style*="var(--green)"],
+html[data-theme="light"] #telemStatus {
+  color: #15803D !important;
+  font-weight: 700;
+}
+
+html[data-theme="light"] .risk-badge.is-low {
+  background: rgba(21, 128, 61, 0.10);
+  border-color: rgba(21, 128, 61, 0.32);
+  color: #15803D !important;
+}
+
+html[data-theme="light"] .user-badge__dot,
+html[data-theme="light"] .mini-hud__dot {
+  background: #15803D !important;
+  box-shadow: 0 0 8px rgba(21, 128, 61, 0.45) !important;
+}
+
+html[data-theme="light"] .battery-bar__fill {
+  background: #15803D !important;
 }
 
 /* ---------------- SEGMENTED THEME SWITCHER WIDGET ---------------- */
