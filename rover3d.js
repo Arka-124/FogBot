@@ -273,8 +273,17 @@ export function initRoverDigitalTwin(options = {}) {
 
     controls.update();
     renderer.render(scene, camera);
+
+    if (!firstFrameRendered) {
+      firstFrameRendered = true;
+      if (typeof window !== 'undefined') {
+        window.__fogbot3dReady = true;
+        window.dispatchEvent(new CustomEvent('fogbot:3d-ready'));
+      }
+    }
   };
 
+  let firstFrameRendered = false;
   animate();
 
   // 7. RESPONSIVE RESIZE (Window + ResizeObserver)

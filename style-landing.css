@@ -642,3 +642,190 @@ a:focus-visible {
   outline: 2px solid var(--green-glow);
   outline-offset: 3px;
 }
+
+/* ==========================================================
+   FOGBOT PRELOADER (PULSING LOGO & NETFLIX-STYLE ZOOM EXIT)
+   ========================================================== */
+
+.preloader {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-950, #020617);
+  overflow: hidden;
+  pointer-events: all;
+  opacity: 1;
+  transition: opacity 0.85s cubic-bezier(0.7, 0, 0.25, 1);
+  will-change: opacity;
+}
+
+html[data-theme="light"] .preloader {
+  background-color: #F8FAFC;
+}
+
+.preloader__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+  will-change: transform, opacity, filter;
+  animation: fogbotPreloaderPulse 2s ease-in-out infinite;
+  user-select: none;
+}
+
+.preloader__badge {
+  width: 136px;
+  height: 136px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 22px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1.5px solid rgba(241, 104, 42, 0.4);
+  box-shadow: 0 0 45px rgba(241, 104, 42, 0.28), inset 0 0 20px rgba(241, 104, 42, 0.12);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.preloader__rover {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+  filter: invert(0.96) hue-rotate(175deg) brightness(1.1);
+  pointer-events: none;
+}
+
+.preloader__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.preloader__wordmark {
+  font-family: var(--font-display, 'Rajdhani', sans-serif);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #F8FAFC;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.preloader__accent {
+  color: var(--orange, #F1682A);
+}
+
+.preloader__sub {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  color: #94A3B8;
+  text-transform: uppercase;
+  margin-top: 7px;
+  line-height: 1;
+}
+
+/* Light Theme Overrides */
+html[data-theme="light"] .preloader__badge {
+  background: #FFFFFF;
+  border: 1.5px solid rgba(234, 88, 12, 0.35);
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08), 0 0 25px rgba(234, 88, 12, 0.15);
+}
+
+html[data-theme="light"] .preloader__rover {
+  filter: drop-shadow(0 2px 8px rgba(15, 23, 42, 0.1));
+}
+
+html[data-theme="light"] .preloader__wordmark {
+  color: #0F172A;
+}
+
+html[data-theme="light"] .preloader__accent {
+  color: #EA580C;
+}
+
+html[data-theme="light"] .preloader__sub {
+  color: #64748B;
+}
+
+/* Pulsing Animations */
+@keyframes fogbotPreloaderPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px transparent);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 26px rgba(241, 104, 42, 0.38));
+  }
+}
+
+html[data-theme="light"] .preloader__container {
+  animation-name: fogbotPreloaderPulseLight;
+}
+
+@keyframes fogbotPreloaderPulseLight {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 22px rgba(234, 88, 12, 0.28));
+  }
+}
+
+/* Netflix-Style Expand and Fade Out */
+.preloader.is-exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preloader.is-exiting .preloader__container {
+  animation: netflixExpandFade 0.85s cubic-bezier(0.7, 0, 0.25, 1) forwards;
+}
+
+@keyframes netflixExpandFade {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  25% {
+    opacity: 0.95;
+    transform: scale(1.35);
+  }
+  50% {
+    opacity: 0.65;
+    filter: blur(4px);
+  }
+  100% {
+    transform: scale(14);
+    opacity: 0;
+    filter: blur(16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader__container {
+    animation: none !important;
+  }
+  .preloader.is-exiting .preloader__container {
+    animation: none !important;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+}
+
+.preloader.is-hidden {
+  display: none !important;
+}
+

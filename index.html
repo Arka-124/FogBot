@@ -20,6 +20,39 @@
   })();
 </script>
 
+<!-- Critical Preloader Styles (Guarantees zero black screen on initial paint) -->
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+  html[data-theme="dark"], html:not([data-theme="light"]) {
+    background-color: #020617;
+    color: #CBD5E1;
+  }
+  html[data-theme="light"] {
+    background-color: #F8FAFC;
+    color: #334155;
+  }
+  #fogbotPreloader {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #020617;
+    overflow: hidden;
+    pointer-events: all;
+    will-change: opacity;
+  }
+  html[data-theme="light"] #fogbotPreloader {
+    background-color: #F8FAFC;
+  }
+</style>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style-landing.css">
@@ -27,6 +60,19 @@
 <script src="theme.js"></script>
 </head>
 <body>
+
+<!-- ============ FOGBOT THEMED PRELOADER ============ -->
+<div id="fogbotPreloader" class="preloader" role="status" aria-live="polite" aria-label="Loading FogBot">
+  <div class="preloader__container" id="preloaderContainer">
+    <div class="preloader__badge">
+      <img src="assets/rover.png" alt="FogBot Rover Logo" class="preloader__rover">
+    </div>
+    <div class="preloader__brand">
+      <span class="preloader__wordmark">FOG<span class="preloader__accent">BOT</span></span>
+      <span class="preloader__sub">AUTONOMOUS PILOT ROVER</span>
+    </div>
+  </div>
+</div>
 
 <!-- ============ NAVBAR ============ -->
 <header class="navbar">
@@ -218,5 +264,61 @@
 
 <script src="script-landing.js"></script>
 <script src="rover3d.bundle.js"></script>
+<script>
+  (function () {
+    var preloader = document.getElementById('fogbotPreloader');
+    if (!preloader) return;
+
+    var startTime = Date.now();
+    var minDuration = 650; // Minimum presentation duration for smooth pulse
+    var maxSafetyTimeout = 3200; // Fallback timeout if anything stalls
+    var isDismissed = false;
+
+    function dismissPreloader() {
+      if (isDismissed) return;
+      isDismissed = true;
+
+      var elapsed = Date.now() - startTime;
+      var remaining = Math.max(0, minDuration - elapsed);
+
+      setTimeout(function () {
+        preloader.classList.add('is-exiting');
+
+        // Allow Netflix-style expansion and fade out (850ms) to complete
+        setTimeout(function () {
+          preloader.classList.add('is-hidden');
+          if (preloader.parentNode) {
+            preloader.parentNode.removeChild(preloader);
+          }
+        }, 880);
+      }, remaining);
+    }
+
+    var windowLoaded = (document.readyState === 'complete');
+    if (!windowLoaded) {
+      window.addEventListener('load', function () {
+        windowLoaded = true;
+        checkReady();
+      });
+    }
+
+    var modelReady = Boolean(window.__fogbot3dReady);
+    if (!modelReady) {
+      window.addEventListener('fogbot:3d-ready', function () {
+        modelReady = true;
+        checkReady();
+      });
+    }
+
+    function checkReady() {
+      if (windowLoaded && (modelReady || !document.getElementById('roverDigitalTwinMount'))) {
+        dismissPreloader();
+      }
+    }
+
+    checkReady();
+    setTimeout(dismissPreloader, maxSafetyTimeout);
+  })();
+</script>
 </body>
 </html>
