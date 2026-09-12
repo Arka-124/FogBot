@@ -7,7 +7,6 @@ const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = '0.0.0.0';
 
 // Middleware
 app.use(cors());
@@ -34,8 +33,7 @@ const fallbackUsers = [
 const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
   ? {
       uri: process.env.DATABASE_URL || process.env.MYSQL_URL,
-      ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false },
-      connectTimeout: 5000
+      ssl: process.env.DB_SSL === 'false' ? undefined : { rejectUnauthorized: false }
     }
   : {
       host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
@@ -46,8 +44,7 @@ const poolConfig = process.env.DATABASE_URL || process.env.MYSQL_URL
       ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0,
-      connectTimeout: 5000
+      queueLimit: 0
     };
 
 const pool = mysql.createPool(poolConfig);
@@ -117,6 +114,10 @@ app.get('/healthz', (req, res) => {
  */
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
 app.get('/landing', (req, res) => {
@@ -250,12 +251,13 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Start Server
+const HOST = '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`====================================================`);
   console.log(` FogBot Login Portal Server Running on http://${HOST}:${PORT}`);
-  console.log(` Port: ${PORT} | Host: ${HOST}`);
   console.log(` Overview Page: http://${HOST}:${PORT}/ (index.html)`);
   console.log(` Login Portal:  http://${HOST}:${PORT}/login (login.html)`);
+  console.log(` Command Center:http://${HOST}:${PORT}/dashboard (dashboard.html)`);
   console.log(` Health Check:  http://${HOST}:${PORT}/healthz`);
   console.log(`====================================================`);
 });

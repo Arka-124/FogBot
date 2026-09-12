@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FogBot — Autonomous Pilot Command Center | Bailadila Mine</title>
+
+  <!-- Immediate Synchronous Authentication Guard -->
+  <script>
+    (function () {
+      try {
+        var session = sessionStorage.getItem('fogbot_session');
+        if (!session) {
+          window.location.replace('login.html?redirect=dashboard.html');
+          return;
+        }
+        var data = JSON.parse(session);
+        if (!data || !data.authenticated) {
+          window.location.replace('login.html?redirect=dashboard.html');
+        }
+      } catch (e) {
+        window.location.replace('login.html?redirect=dashboard.html');
+      }
+    })();
+  </script>
+
+  <!-- Typography & Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Core and Dashboard Stylesheets -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style-dashboard.css">
+</head>
+<body class="dashboard-body">
+
+  <!-- Ambient Cyber Gradients & Tactical Background Grid -->
+  <div class="ambient-glow ambient-glow--top" aria-hidden="true"></div>
+  <div class="ambient-glow ambient-glow--bottom" aria-hidden="true"></div>
+  <div class="radar-lines" aria-hidden="true"></div>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="dash-header">
+    <div class="dash-header__brand">
+      <a href="index.html" class="dash-header__wordmark">Fog<span>Bot</span></a>
+      <span class="dash-header__badge">AUTONOMOUS PILOT COMMAND</span>
+      <div class="dash-header__logos">
+        <img src="assets/nmdc-logo.png" alt="NMDC Logo" class="dash-header__logo">
+        <img src="assets/sih-logo.png" alt="SIH 2026 Logo" class="dash-header__logo">
+      </div>
+    </div>
+
+    <div class="dash-header__center">
+      <!-- Active Unit Selector -->
+      <div class="unit-selector">
+        <span class="unit-selector__label">Active Unit:</span>
+        <select id="unitSelect" class="unit-select" aria-label="Select Active Rover Unit">
+          <option value="rover-1" selected>Rover-1 (Bailadila Dep-5)</option>
+        </select>
+        <button type="button" class="btn-add-unit" title="Add new rover unit (v2.0 fleet expansion)" aria-label="Add new unit">
+          +
+        </button>
+      </div>
+
+      <!-- Fog Density Slider -->
+      <div class="fog-controller">
+        <div class="fog-controller__meta">
+          <span class="fog-controller__title">Fog Density</span>
+          <span id="fogValBadge" class="fog-controller__val">35%</span>
+        </div>
+        <input 
+          type="range" 
+          id="fogSlider" 
+          class="fog-slider" 
+          min="0" 
+          max="100" 
+          value="35" 
+          step="1"
+          aria-label="Adjust simulated atmospheric fog density"
+        >
+      </div>
+
+      <!-- Large Red E-STOP Button -->
+      <button type="button" id="btnEstop" class="btn-estop" aria-label="Emergency Stop">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+        <span id="estopText">EMERGENCY STOP</span>
+      </button>
+    </div>
+
+    <div class="dash-header__right">
+      <div class="user-badge">
+        <span class="user-badge__dot" aria-hidden="true"></span>
+        <span>Operator: <strong id="operatorName">admin</strong></span>
+      </div>
+      <button type="button" id="logoutBtn" class="btn-logout" title="Sign Out & Lock Terminal">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ MAIN CONTENT CONTAINER ============ -->
+  <main class="dash-container">
+
+    <!-- KPI STRIP -->
+    <section class="kpi-strip" aria-label="Key Performance Indicators">
+      
+      <!-- Metric 1: Active Rovers -->
+      <div class="kpi-card">
+        <div class="kpi-card__header">
+          <span class="kpi-card__title">Active Rovers</span>
+          <svg class="kpi-card__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+        </div>
+        <div class="kpi-card__val">1 <span class="kpi-card__unit">/ 1</span></div>
+        <div class="kpi-card__sub" style="color: var(--green);">Rover-1 Online &bull; Escorting</div>
+      </div>
+
+      <!-- Metric 2: Connected Trucks -->
+      <div class="kpi-card">
+        <div class="kpi-card__header">
+          <span class="kpi-card__title">Connected Trucks</span>
+          <svg class="kpi-card__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="3" width="15" height="13"/>
+            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+            <circle cx="5.5" cy="18.5" r="2.5"/>
+            <circle cx="18.5" cy="18.5" r="2.5"/>
+          </svg>
+        </div>
+        <div class="kpi-card__val">1 <span class="kpi-card__unit">Truck</span></div>
+        <div class="kpi-card__sub" style="color: var(--cyan);">CAT 777D #04 &bull; Convoy Locked</div>
+      </div>
+
+      <!-- Metric 3: Visibility -->
+      <div class="kpi-card">
+        <div class="kpi-card__header">
+          <span class="kpi-card__title">Visibility</span>
+          <svg class="kpi-card__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div class="kpi-card__val"><span id="kpiVisibility">38</span> <span class="kpi-card__unit">m</span></div>
+        <div class="kpi-card__sub">Atmospheric LiDAR scatter reading</div>
+      </div>
+
+      <!-- Metric 4: Site Risk -->
+      <div class="kpi-card">
+        <div class="kpi-card__header">
+          <span class="kpi-card__title">Site Risk Assessment</span>
+          <svg class="kpi-card__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="kpi-card__val">
+          <span id="kpiRiskBadge" class="risk-badge is-low">LOW</span>
+        </div>
+        <div class="kpi-card__sub">Dynamic speed governor active</div>
+      </div>
+
+    </section>
+
+    <!-- MAIN TWO-COLUMN SECTION -->
+    <section class="main-grid">
+      
+      <!-- LEFT STACK: Camera Feed + LiDAR Scan -->
+      <div class="left-stack">
+        
+        <!-- Camera Feed Panel (Placeholder with centered text) -->
+        <article class="dash-panel">
+          <div class="dash-panel__header">
+            <div class="dash-panel__title-wrap">
+              <span class="dash-panel__dot" aria-hidden="true"></span>
+              <h2 class="dash-panel__title">Camera Feed // Forward FLIR Optical Sensor</h2>
+            </div>
+            <span class="dash-panel__meta">1080p @ 30 FPS</span>
+          </div>
+
+          <div class="camera-box">
+            <div class="camera-box__scanline" aria-hidden="true"></div>
+            <div class="camera-box__hud-crosshair" aria-hidden="true"></div>
+
+            <div class="camera-box__content">
+              <div class="camera-box__icon-wrap">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              <p class="camera-box__main-text">Camera feed &mdash; pending YOLO integration</p>
+              <p class="camera-box__sub-text">Optical sensor viewport ready for real-time bounding box object detection.</p>
+              <span class="camera-box__status-pill">FLIR Tau2 Thermal Sensor Hub &bull; Standby</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- LiDAR Scan Panel -->
+        <article class="dash-panel lidar-panel">
+          <div class="dash-panel__header">
+            <div class="dash-panel__title-wrap">
+              <span class="dash-panel__dot" style="background: var(--cyan); box-shadow: 0 0 8px var(--cyan);" aria-hidden="true"></span>
+              <h2 class="dash-panel__title">LiDAR Scan // 360&deg; Top-Down Point Scatter</h2>
+            </div>
+            <span class="dash-panel__meta">assets/scan_points.json &bull; 1,500 pts</span>
+          </div>
+
+          <div class="lidar-canvas-container">
+            <canvas id="lidarCanvas" width="600" height="420" aria-label="LiDAR point cloud top-down radar view"></canvas>
+            
+            <div class="lidar-hud-overlay">
+              <div class="lidar-badge">Cutoff Range: <span id="lidarCutoffText">Active (Visibility Bound)</span></div>
+              <div class="lidar-badge">Orientation: <span>028&deg; NNE</span></div>
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+      <!-- RIGHT COLUMN: AI Risk Engine Card -->
+      <aside class="dash-panel risk-engine-card">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" style="background: var(--orange);" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">AI Risk Engine // Adaptive Safe-Speed Governor</h2>
+          </div>
+          <span class="dash-panel__meta">Real-time Inference</span>
+        </div>
+
+        <div class="risk-engine-body">
+          
+          <!-- Current Simulated Inputs -->
+          <div class="inputs-grid">
+            <div class="input-tile">
+              <span class="input-tile__label">Rover Speed</span>
+              <span id="inputSpeed" class="input-tile__val">24.5 km/h</span>
+            </div>
+            <div class="input-tile">
+              <span class="input-tile__label">Fog Level</span>
+              <span id="inputFog" class="input-tile__val">35%</span>
+            </div>
+            <div class="input-tile">
+              <span class="input-tile__label">Camera Confidence</span>
+              <span id="inputCamera" class="input-tile__val" style="color: var(--cyan);">NOMINAL (Thermal)</span>
+            </div>
+            <div class="input-tile">
+              <span class="input-tile__label">LiDAR Obstacle Dist</span>
+              <span id="inputLidarObstacle" class="input-tile__val">CLEAR (&gt;30m)</span>
+            </div>
+          </div>
+
+          <!-- Risk Computation Meter -->
+          <div class="risk-meter-box">
+            <div class="risk-meter-box__top">
+              <span class="risk-meter-box__title">Computed Convoy Risk Score</span>
+              <span id="riskEngineBadge" class="risk-badge is-low">LOW</span>
+            </div>
+            <div class="risk-bar" role="progressbar" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">
+              <div id="riskBarFill" class="risk-bar__fill"></div>
+            </div>
+          </div>
+
+          <!-- Recommended Speed Limit -->
+          <div class="speed-recommendation">
+            <div class="speed-rec__meta">
+              <span class="speed-rec__label">Recommended Speed Limit</span>
+              <span class="speed-rec__sub">Enforced for leading pilot &amp; trailing haul truck</span>
+            </div>
+            <div id="recSpeedVal" class="speed-rec__val">
+              25 <span>km/h MAX</span>
+            </div>
+          </div>
+
+          <!-- Headway Safety Advisory Notice -->
+          <div class="safety-advisory">
+            <p id="safetyAdvisoryText">
+              LOW RISK: Forward path clear. LiDAR scans verify unobstructed roadway within 40m safe corridor.
+            </p>
+          </div>
+
+        </div>
+      </aside>
+
+    </section>
+
+    <!-- MIDDLE ROW: Vehicle Telemetry & Convoy Map -->
+    <section class="middle-grid">
+      
+      <!-- Card A: Vehicle Telemetry -->
+      <article class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" style="background: var(--cyan);" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">Vehicle Telemetry // Pilot Rover-1</h2>
+          </div>
+          <span class="dash-panel__meta">CAN Bus Gateway &bull; 50 Hz</span>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="telem-item">
+            <span class="telem-item__label">GPS Coordinates</span>
+            <span id="telemGps" class="telem-item__val">18.7052&deg; N, 81.2384&deg; E</span>
+          </div>
+
+          <div class="telem-item">
+            <span class="telem-item__label">Altitude &amp; Grade</span>
+            <span id="telemAlt" class="telem-item__val">1,182 m ASL</span>
+          </div>
+
+          <div class="telem-item">
+            <span class="telem-item__label">Drive Speed / Limit</span>
+            <span id="telemSpeed" class="telem-item__val">24.5 km/h (Limit: 25)</span>
+          </div>
+
+          <div class="telem-item">
+            <span class="telem-item__label">Battery Reserve</span>
+            <div class="battery-wrap">
+              <span id="telemBatteryVal" class="telem-item__val">84.2%</span>
+              <div class="battery-bar">
+                <div id="telemBatteryFill" class="battery-bar__fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="telem-item">
+            <span class="telem-item__label">Mission Status</span>
+            <span id="telemStatus" class="telem-item__val" style="color: var(--green);">AUTONOMOUS ESCORTING</span>
+          </div>
+
+          <div class="telem-item">
+            <span class="telem-item__label">Mine Zone</span>
+            <span class="telem-item__val">NMDC Bailadila Deposit 5</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card B: Convoy Positioning Map -->
+      <article class="dash-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" style="background: var(--orange);" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">Convoy Positioning // Haul Road Sector 3B</h2>
+          </div>
+          <span class="dash-panel__meta">DSRC Telemetry Tether</span>
+        </div>
+
+        <div class="map-canvas-container">
+          <canvas id="mapCanvas" width="600" height="220" aria-label="Convoy top-down schematic map"></canvas>
+
+          <div class="map-hud-readout">
+            <span>Convoy Gap: <b id="mapGapReadout">38.5 m</b></span>
+            <span>TTC (Collision Time): <b id="mapTtcReadout">5.6 s</b></span>
+            <span>Grade: <b>-4.2% Downhill</b></span>
+          </div>
+        </div>
+      </article>
+
+    </section>
+
+    <!-- BOTTOM ROW: Event Log -->
+    <section class="dash-panel event-log-panel">
+      <div class="dash-panel__header">
+        <div class="dash-panel__title-wrap">
+          <span class="dash-panel__dot" style="background: #38BDF8;" aria-hidden="true"></span>
+          <h2 class="dash-panel__title">Mission Event Log // State Change Recorder</h2>
+        </div>
+        <button type="button" id="btnClearLog" class="btn-logout" style="padding: 3px 8px;" aria-label="Clear event log">
+          Clear Log
+        </button>
+      </div>
+
+      <div id="eventLogStream" class="event-log-stream" role="log" aria-live="polite">
+        <!-- Log entries populated on state changes -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ COMPACT MINI HUD (ALWAYS VISIBLE WITHOUT SCROLLING) ============ -->
+  <aside class="mini-hud" aria-label="Mini HUD Telemetry Widget">
+    <div class="mini-hud__unit">
+      <span id="hudDot" class="mini-hud__dot" aria-hidden="true"></span>
+      <span class="mini-hud__name">ROVER-1</span>
+    </div>
+
+    <div class="mini-hud__stats">
+      <div class="mini-stat">
+        <span class="mini-stat__label">VISIBILITY</span>
+        <span id="hudVisibility" class="mini-stat__val">38m</span>
+      </div>
+
+      <div class="mini-stat">
+        <span class="mini-stat__label">SPEED</span>
+        <span id="hudSpeed" class="mini-stat__val">24.5 km/h</span>
+      </div>
+
+      <div class="mini-stat">
+        <span class="mini-stat__label">OBSTACLE</span>
+        <span id="hudObstacle" class="mini-stat__val">Clear</span>
+      </div>
+
+      <div class="mini-stat">
+        <span class="mini-stat__label">RISK</span>
+        <span id="hudRisk" class="mini-stat__val is-risk-low">LOW</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main JavaScript Pipeline -->
+  <script src="dashboard.js"></script>
+</body>
+</html>

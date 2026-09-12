@@ -416,7 +416,8 @@ npm start
 The server will bind to `0.0.0.0:3000`:
 * 🌐 **Landing Page & 3D Digital Twin**: [http://localhost:3000](http://localhost:3000)
 * 🔐 **Operator Login Gateway**: [http://localhost:3000/login](http://localhost:3000/login)
-* 🩺 **Health Check**: [http://localhost:3000/healthz](http://localhost:3000/healthz)
+* 🎛️ **Command Center Dashboard**: [http://localhost:3000/dashboard](http://localhost:3000/dashboard) *(Requires Authentication)*
+* 🩺 **Health Check**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 
 ---
 

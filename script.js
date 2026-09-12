@@ -136,6 +136,14 @@
         const data = await response.json();
 
         if (response.ok && data.success) {
+          // Store authentication session
+          sessionStorage.setItem('fogbot_session', JSON.stringify({
+            authenticated: true,
+            userId: userId,
+            token: 'auth_' + Date.now(),
+            loginTime: new Date().toISOString()
+          }));
+
           // Successful login
           showFeedback(data.message || 'Authentication successful! Access granted.', 'success');
           btnText.textContent = 'ACCESS GRANTED';
@@ -145,13 +153,15 @@
           // Clear password input for security
           if (passwordInput) passwordInput.value = '';
 
-          // Optional: forward to command overview or show authenticated status
+          // Forward to dashboard.html
           setTimeout(function () {
-            btnText.textContent = 'Redirecting to Rover Telemetry...';
+            btnText.textContent = 'Initializing Command Center...';
             setTimeout(function () {
-              window.location.href = 'index.html';
-            }, 1200);
-          }, 1500);
+              const urlParams = new URLSearchParams(window.location.search);
+              const target = urlParams.get('redirect') || 'dashboard.html';
+              window.location.href = target;
+            }, 1000);
+          }, 1200);
 
         } else {
           // Authentication or reCAPTCHA failure
@@ -175,4 +185,9 @@
     });
   }
 
+  // Check if user was redirected from protected dashboard
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('redirect') === 'dashboard.html' || urlParams.has('unauthorized')) {
+    showFeedback('Authentication required. Please log in to access the Command Dashboard.', 'error');
+  }
 })();
