@@ -89,16 +89,72 @@
     statEls.forEach(animateCount);
   }
 
-  /* ---------- Live visibility ticker (demo placeholder) ----------
-     Replace this with a real value pushed from the dashboard telemetry
-     feed once available. For now it gently drifts to look "live". */
+  /* ---------- Live Visibility Metric (Synced with Command Center Fog Density) ----------
+     The visibility metric is consistent with the post-login command page fog density:
+     visibility index = 100 - fog density %
+  */
   var visibilityEl = document.getElementById('visibilityValue');
-  if (visibilityEl) {
-    var current = parseInt(visibilityEl.textContent, 10) || 86;
-    setInterval(function () {
-      var drift = Math.round((Math.random() - 0.5) * 4);
-      current = Math.min(98, Math.max(60, current + drift));
-      visibilityEl.textContent = current;
-    }, 4000);
+
+  function updateVisibilityFromFog(fogDensity) {
+    var fog = parseInt(fogDensity, 10);
+    if (isNaN(fog)) return;
+    fog = Math.max(0, Math.min(100, fog));
+    var visIndex = 100 - fog; // visibility index = 100 - fog density %
+    if (visibilityEl && visibilityEl.textContent !== String(visIndex)) {
+      visibilityEl.textContent = visIndex;
+    }
+  }
+
+  // 1. Synchronously apply cached fog density from localStorage if available
+  try {
+    var initialFog = localStorage.getItem('fogbot_fog_density');
+    if (initialFog !== null && !isNaN(parseInt(initialFog, 10))) {
+      updateVisibilityFromFog(initialFog);
+    } else {
+      // Default fog density is 14% -> 86% visibility
+      updateVisibilityFromFog(14);
+    }
+  } catch (e) {
+    updateVisibilityFromFog(14);
+  }
+
+  // 2. Fetch latest telemetry from server endpoint
+  function fetchFogTelemetry() {
+    fetch('/api/telemetry/fog')
+      .then(function (res) {
+        if (res.ok) return res.json();
+      })
+      .then(function (data) {
+        if (data && typeof data.fogDensity === 'number') {
+          updateVisibilityFromFog(data.fogDensity);
+          try {
+            localStorage.setItem('fogbot_fog_density', data.fogDensity);
+          } catch (err) {}
+        }
+      })
+      .catch(function () {});
+  }
+  fetchFogTelemetry();
+
+  // Poll server every 3s to keep index.html live and in-sync across devices
+  setInterval(fetchFogTelemetry, 3000);
+
+  // 3. Instant cross-tab sync via storage event
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'fogbot_fog_density' && e.newValue !== null) {
+      updateVisibilityFromFog(e.newValue);
+    }
+  });
+
+  // 4. Instant cross-tab sync via BroadcastChannel
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      var channel = new BroadcastChannel('fogbot_telemetry');
+      channel.onmessage = function (e) {
+        if (e.data && typeof e.data.fogDensity === 'number') {
+          updateVisibilityFromFog(e.data.fogDensity);
+        }
+      };
+    } catch (err) {}
   }
 })();

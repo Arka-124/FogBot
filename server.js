@@ -111,6 +111,46 @@ app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
 
+// Shared in-memory telemetry state for multi-client / cross-page synchronization
+let sharedTelemetry = {
+  fogDensity: 14, // Default 14% fog -> 86% visibility index
+  updatedAt: new Date().toISOString()
+};
+
+/**
+ * GET /api/telemetry/fog
+ * Fetches current fog density and visibility index (100 - fogDensity)
+ */
+app.get('/api/telemetry/fog', (req, res) => {
+  res.json({
+    fogDensity: sharedTelemetry.fogDensity,
+    visibilityIndex: 100 - sharedTelemetry.fogDensity,
+    updatedAt: sharedTelemetry.updatedAt
+  });
+});
+
+/**
+ * POST /api/telemetry/fog
+ * Updates shared fog density from the command dashboard
+ */
+app.post('/api/telemetry/fog', (req, res) => {
+  const { fogDensity } = req.body;
+  const parsed = parseInt(fogDensity, 10);
+  if (!isNaN(parsed) && parsed >= 0 && parsed <= 100) {
+    sharedTelemetry.fogDensity = parsed;
+    sharedTelemetry.updatedAt = new Date().toISOString();
+    return res.json({
+      success: true,
+      fogDensity: sharedTelemetry.fogDensity,
+      visibilityIndex: 100 - sharedTelemetry.fogDensity
+    });
+  }
+  return res.status(400).json({
+    success: false,
+    message: 'Invalid fogDensity value. Must be an integer between 0 and 100.'
+  });
+});
+
 /**
  * Page Routes
  * - GET / -> index.html (Served automatically via static middleware: FogBot 3D Digital Twin)

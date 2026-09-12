@@ -287,7 +287,7 @@ export function initRoverDigitalTwin(options = {}) {
     const observer = new MutationObserver(() => {
       const vis = parseInt(visibilityValEl.textContent, 10);
       if (!isNaN(vis)) {
-        updateFog(vis * 0.3);
+        updateFog(vis);
       }
     });
     observer.observe(visibilityValEl, { childList: true, characterData: true, subtree: true });

@@ -97,7 +97,7 @@
   // 3. STATE OBJECT & SIMULATION DATA
   // =========================================================================
   const state = {
-    fogDensity: 35,          // 0 to 100 range from slider
+    fogDensity: 14,          // 0 to 100 range from slider (default 14% -> 86% visibility)
     visibility: 38,          // derived in meters (inversely related to fog)
     speed: 24.5,             // current rover speed in km/h
     speedLimit: 25,          // recommended speed limit based on risk
@@ -725,13 +725,44 @@
   }
 
   // =========================================================================
-  // 11. INTERACTION LISTENERS (FOG SLIDER, E-STOP)
+  // 11. INTERACTION LISTENERS (FOG SLIDER, E-STOP) & TELEMETRY SYNC
   // =========================================================================
+  const telemetryChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('fogbot_telemetry') : null;
+
+  function broadcastFogUpdate(fogVal) {
+    if (telemetryChannel) {
+      try {
+        telemetryChannel.postMessage({ type: 'FOG_UPDATE', fogDensity: fogVal, visibilityIndex: 100 - fogVal });
+      } catch (e) {}
+    }
+  }
+
+  let syncFogTimeout = null;
+  function syncFogToServer(fogVal) {
+    clearTimeout(syncFogTimeout);
+    syncFogTimeout = setTimeout(() => {
+      fetch('/api/telemetry/fog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fogDensity: fogVal })
+      }).catch(() => {});
+    }, 150);
+  }
+
+  function handleFogSliderChange(e) {
+    const val = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
+    state.fogDensity = val;
+    try {
+      localStorage.setItem('fogbot_fog_density', val);
+    } catch (err) {}
+    broadcastFogUpdate(val);
+    syncFogToServer(val);
+    tick();
+  }
+
   if (fogSlider) {
-    fogSlider.addEventListener('input', function () {
-      state.fogDensity = parseInt(this.value, 10);
-      tick();
-    });
+    fogSlider.addEventListener('input', handleFogSliderChange);
+    fogSlider.addEventListener('change', handleFogSliderChange);
   }
 
   if (btnEstop) {
@@ -761,8 +792,35 @@
   }
 
   // =========================================================================
-  // 12. INITIALIZATION
+  // 12. INITIALIZATION & TELEMETRY RESTORATION
   // =========================================================================
+  // Restore persisted fog density from localStorage or server
+  try {
+    const cachedFog = localStorage.getItem('fogbot_fog_density');
+    if (cachedFog !== null && !isNaN(parseInt(cachedFog, 10))) {
+      state.fogDensity = Math.max(0, Math.min(100, parseInt(cachedFog, 10)));
+    }
+  } catch (e) {}
+
+  if (fogSlider) {
+    fogSlider.value = state.fogDensity;
+  }
+
+  // Fetch from server in case server has newer/external value
+  fetch('/api/telemetry/fog')
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (data && typeof data.fogDensity === 'number') {
+        state.fogDensity = data.fogDensity;
+        if (fogSlider) fogSlider.value = state.fogDensity;
+        try {
+          localStorage.setItem('fogbot_fog_density', state.fogDensity);
+        } catch (e) {}
+        tick();
+      }
+    })
+    .catch(() => {});
+
   // Boot event log entries
   addLogEntry('INFO', 'FogBot Command Center initialized. Active link: Rover-1.');
   addLogEntry('INFO', 'Connected to Haul Truck CAT 777D #04 (Bailadila Mine Sector 3B).');
