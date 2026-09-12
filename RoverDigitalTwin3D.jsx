@@ -47,19 +47,29 @@ export default function RoverDigitalTwin3D({
     controls.minDistance = 2.5;
     controls.maxDistance = 12;
 
-    // 3. LIGHTING
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // 3. LIGHTING (Neutral, physically-accurate illumination with dark mode backlight)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
     dirLight.position.set(6, 10, 5);
     dirLight.castShadow = true;
     scene.add(dirLight);
 
-    // Status PointLight (Top Chassis Accent)
-    const statusLight = new THREE.PointLight(0x10b981, 2, 8);
-    statusLight.position.set(0, 1.8, 0);
-    scene.add(statusLight);
+    // Soft neutral fill light
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.45);
+    fillLight.position.set(-6, 6, -5);
+    scene.add(fillLight);
+
+    // Subtle realistic backlight (provides rim/contour separation for the rover in dark mode)
+    const backLight = new THREE.DirectionalLight(0xdbeafe, 0.75);
+    backLight.position.set(1.5, 4.5, 4.5);
+    scene.add(backLight);
+
+    // Top Elevated Mast Beacon Light (Shines bright red always)
+    const beaconLight = new THREE.PointLight(0xff0011, 3.8, 6.0);
+    beaconLight.position.set(0, 1.9, 0.3);
+    scene.add(beaconLight);
 
     // 4. MINE GROUND GRID & ENVIRONMENT
     const gridHelper = new THREE.GridHelper(20, 20, 0x0284c7, 0x1e293b);
@@ -128,10 +138,36 @@ export default function RoverDigitalTwin3D({
     lidarBase.position.set(0, 1.7, 0.3);
     roverGroup.add(lidarBase);
 
-    const lidarHeadMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 });
-    const lidarHead = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 24), lidarHeadMat);
-    lidarHead.position.set(0, 1.82, 0.3);
-    roverGroup.add(lidarHead);
+    // Elevated Mast Warning Beacon Cap & Dome (Shines bright red always)
+    const beaconGroup = new THREE.Group();
+    beaconGroup.position.set(0, 1.82, 0.3);
+
+    const beaconCapMat = new THREE.MeshStandardMaterial({
+      color: 0xff1e27,
+      emissive: 0xff0011,
+      emissiveIntensity: 3.5,
+      roughness: 0.15,
+      metalness: 0.15
+    });
+    const beaconCap = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.12, 24), beaconCapMat);
+    beaconGroup.add(beaconCap);
+
+    // High-visibility illuminated beacon top dome
+    const beaconDomeMat = new THREE.MeshStandardMaterial({
+      color: 0xff2233,
+      emissive: 0xff0011,
+      emissiveIntensity: 3.8,
+      roughness: 0.1,
+      metalness: 0.1
+    });
+    const beaconDome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.148, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      beaconDomeMat
+    );
+    beaconDome.position.set(0, 0.06, 0);
+    beaconGroup.add(beaconDome);
+
+    roverGroup.add(beaconGroup);
 
     // D. Front Bull-Bar
     const bullBar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.25, 0.15), darkSteelMat);
@@ -182,8 +218,8 @@ export default function RoverDigitalTwin3D({
       animationFrameId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Continuous LiDAR rotation
-      lidarHead.rotation.y += 0.05;
+      // Continuous Beacon rotation
+      beaconGroup.rotation.y += 0.05;
 
       // Rear Hazard Flashing Rate (Speeds up during HIGH risk or E-Stop)
       const flashRate = isEStopped || riskLevel === 'HIGH' ? 14 : riskLevel === 'MEDIUM' ? 8 : 4;
@@ -199,21 +235,18 @@ export default function RoverDigitalTwin3D({
       strobeMat.transparent = true;
 
       // Projecting Light Intensity
-      rearHazardLight.intensity = flashPulse * 5;
+      rearHazardLight.intensity = flashPulse * 2.5;
 
-      // Dynamic Status & Risk Colors
-      let activeColor = 0x10b981; // Green
+      // Dynamic Risk Colors for Rear Hazard Pods
       if (isEStopped || riskLevel === 'HIGH') {
-        activeColor = 0xef4444; // Red
         rearHazardLight.color.setHex(0xef4444);
-      } else if (riskLevel === 'MEDIUM') {
-        activeColor = 0xf59e0b; // Amber
-        rearHazardLight.color.setHex(0xf59e0b);
       } else {
         rearHazardLight.color.setHex(0xf59e0b);
       }
 
-      statusLight.color.setHex(activeColor);
+      // Top Beacon Light shines bright red always
+      beaconLight.color.setHex(0xff0011);
+      beaconLight.intensity = 3.8;
 
       controls.update();
       renderer.render(scene, camera);
