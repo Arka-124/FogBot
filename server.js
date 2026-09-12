@@ -16,6 +16,11 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static frontend files (index.html, style.css, script.js, assets)
 app.use(express.static(path.join(__dirname)));
 
+// Direct favicon handler for browsers requesting /favicon.ico
+app.get('/favicon.ico', (req, res) => {
+  res.sendFile(path.join(__dirname, 'assets', 'rover.png'));
+});
+
 // Track database connection status
 let isDbConnected = false;
 
