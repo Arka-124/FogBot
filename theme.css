@@ -226,8 +226,8 @@ html[data-theme="light"] .section-kicker {
 
 html[data-theme="light"] .hero__overlay {
   background:
-    linear-gradient(180deg, rgba(248,250,252,0.15) 0%, rgba(248,250,252,0.5) 55%, rgba(248,250,252,0.92) 100%),
-    linear-gradient(90deg, rgba(248,250,252,0.7) 0%, rgba(248,250,252,0.1) 45%);
+    linear-gradient(180deg, transparent 55%, rgba(248, 250, 252, 0.75) 88%, var(--bg-950, #F8FAFC) 100%),
+    linear-gradient(90deg, rgba(248, 250, 252, 0.75) 0%, rgba(248, 250, 252, 0.25) 35%, transparent 65%);
 }
 
 html[data-theme="light"] .digital-twin-badge {

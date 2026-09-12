@@ -11,7 +11,8 @@
 <script>
   (function () {
     try {
-      var s = localStorage.getItem('fogbot_theme_mode') || 'system';
+      var p = new URLSearchParams(window.location.search).get('theme');
+      var s = (p === 'light' || p === 'dark' || p === 'system') ? p : (localStorage.getItem('fogbot_theme_mode') || 'system');
       var t = s === 'system' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : s;
       document.documentElement.setAttribute('data-theme', t);
       document.documentElement.setAttribute('data-theme-setting', s);

@@ -21,14 +21,14 @@ export function initRoverDigitalTwin(options = {}) {
   let fogVisibility = options.fogVisibility || 18;
   let isEStopped = options.isEStopped || false;
 
-  const width = mount.clientWidth || 560;
-  const height = mount.clientHeight || 360;
+  const width = mount.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const height = mount.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
 
   // 1. SCENE & CAMERA SETUP
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.set(-4, 2.5, -5); // Positioned to view rear hazard assembly by default
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 300);
+  camera.position.set(-3.6, 2.0, -4.4); // Perfectly framed enlarged hero view of the rear hazard assembly
   camera.lookAt(0, 0.6, 0);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -43,9 +43,9 @@ export function initRoverDigitalTwin(options = {}) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
-  controls.maxPolarAngle = Math.PI / 2 + 0.05;
-  controls.minDistance = 2.5;
-  controls.maxDistance = 12;
+  controls.maxPolarAngle = Math.PI / 2 + 0.04;
+  controls.minDistance = 2.2;
+  controls.maxDistance = 14;
   controls.target.set(0, 0.6, 0);
   controls.update();
 
@@ -54,8 +54,17 @@ export function initRoverDigitalTwin(options = {}) {
   scene.add(ambientLight);
 
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
-  dirLight.position.set(6, 10, 5);
+  dirLight.position.set(7, 13, 5);
   dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 1;
+  dirLight.shadow.camera.far = 30;
+  dirLight.shadow.camera.left = -6;
+  dirLight.shadow.camera.right = 6;
+  dirLight.shadow.camera.top = 6;
+  dirLight.shadow.camera.bottom = -6;
+  dirLight.shadow.bias = -0.0005;
   scene.add(dirLight);
 
   // Soft neutral fill light (white/soft daylight, eliminates artificial blue floor reflection)
@@ -68,13 +77,13 @@ export function initRoverDigitalTwin(options = {}) {
   statusLight.position.set(0, 1.8, 0);
   scene.add(statusLight);
 
-  // 4. MINE GROUND GRID & ENVIRONMENT (Subtle neutral slate grid)
-  const gridHelper = new THREE.GridHelper(20, 20, 0x64748b, 0x334155);
-  gridHelper.position.y = -0.01;
+  // 4. MINE GROUND GRID & ENVIRONMENT (Subtle neutral slate grid expanding seamlessly to the horizon)
+  const gridHelper = new THREE.GridHelper(80, 80, 0x475569, 0x1e293b);
+  gridHelper.position.y = -0.005;
   scene.add(gridHelper);
 
-  const floorGeo = new THREE.PlaneGeometry(25, 25);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.8 });
+  const floorGeo = new THREE.PlaneGeometry(600, 600);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x070b14, roughness: 0.8 });
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
@@ -84,17 +93,19 @@ export function initRoverDigitalTwin(options = {}) {
   const applySceneTheme = (theme) => {
     if (theme === 'light') {
       scene.background = new THREE.Color(0xF8FAFC);
-      const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
-      scene.fog = new THREE.FogExp2(0xE2E8F0, density);
+      const density = Math.max(0.003, Math.min(0.02, 0.035 - fogVisibility * 0.00035));
+      scene.fog = new THREE.FogExp2(0xF8FAFC, density);
       floorMat.color.setHex(0xE2E8F0);
+      gridHelper.material.color.setHex(0xCBD5E1);
       fillLight.color.setHex(0xFFFFFF);
       dirLight.intensity = 1.3;
       ambientLight.intensity = 0.9;
     } else {
       scene.background = new THREE.Color(0x020617);
-      const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
-      scene.fog = new THREE.FogExp2(0x0F172A, density);
-      floorMat.color.setHex(0x090D16);
+      const density = Math.max(0.003, Math.min(0.02, 0.035 - fogVisibility * 0.00035));
+      scene.fog = new THREE.FogExp2(0x020617, density);
+      floorMat.color.setHex(0x070B14);
+      gridHelper.material.color.setHex(0x334155);
       fillLight.color.setHex(0xFFFFFF);
       dirLight.intensity = 1.4;
       ambientLight.intensity = 0.85;

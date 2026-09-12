@@ -21,6 +21,12 @@
   // Get active stored setting (defaults strictly to 'system')
   function getStoredSetting() {
     try {
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        const urlParam = new URLSearchParams(window.location.search).get('theme');
+        if (urlParam === 'light' || urlParam === 'dark' || urlParam === 'system') {
+          return urlParam;
+        }
+      }
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored === 'light' || stored === 'dark' || stored === 'system') {
         return stored;
