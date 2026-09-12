@@ -74,6 +74,13 @@ a { color: inherit; }
   font-weight: 700;
   color: var(--ink-000);
   white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.navbar__wordmark:hover {
+  opacity: 0.82;
 }
 
 .navbar__divider {

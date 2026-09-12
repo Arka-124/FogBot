@@ -114,6 +114,13 @@ body {
   font-weight: 700;
   color: var(--ink-000);
   letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.portal-header__wordmark:hover {
+  opacity: 0.82;
 }
 
 .portal-header__divider {

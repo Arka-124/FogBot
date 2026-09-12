@@ -59,6 +59,12 @@ body.dashboard-body {
   text-transform: uppercase;
   color: var(--ink-000);
   text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.dash-header__wordmark:hover {
+  opacity: 0.82;
 }
 
 .dash-header__wordmark span {
