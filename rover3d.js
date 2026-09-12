@@ -26,10 +26,39 @@ export function initRoverDigitalTwin(options = {}) {
 
   // 1. SCENE & CAMERA SETUP
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x020617); // Slate-950 industrial dark
+
+  const floorGeo = new THREE.PlaneGeometry(25, 25);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.8 });
+
+  const applySceneTheme = (theme) => {
+    if (theme === 'light') {
+      scene.background = new THREE.Color(0xF8FAFC);
+      const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
+      scene.fog = new THREE.FogExp2(0xE2E8F0, density);
+      if (floorMat) floorMat.color.setHex(0xE2E8F0);
+    } else {
+      scene.background = new THREE.Color(0x020617);
+      const density = Math.max(0.005, Math.min(0.025, 0.04 - fogVisibility * 0.0004));
+      scene.fog = new THREE.FogExp2(0x0F172A, density);
+      if (floorMat) floorMat.color.setHex(0x090D16);
+    }
+  };
+
+  const initialTheme = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'dark';
+  applySceneTheme(initialTheme);
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('fogbot_theme_change', (e) => {
+      if (e && e.detail && e.detail.theme) {
+        applySceneTheme(e.detail.theme);
+      }
+    });
+  }
+
   const updateFog = (vis) => {
-    const density = Math.max(0.005, Math.min(0.025, 0.04 - vis * 0.0004));
-    scene.fog = new THREE.FogExp2(0x0f172a, density);
+    fogVisibility = vis;
+    const curTheme = (typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme')) || 'dark';
+    applySceneTheme(curTheme);
   };
   updateFog(fogVisibility);
 
@@ -78,8 +107,6 @@ export function initRoverDigitalTwin(options = {}) {
   gridHelper.position.y = -0.01;
   scene.add(gridHelper);
 
-  const floorGeo = new THREE.PlaneGeometry(25, 25);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.8 });
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;

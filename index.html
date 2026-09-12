@@ -4,9 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FogBot — AI-Guided Pilot Rover | SIH 2026</title>
+
+<!-- Early Synchronous Theme Resolution (Zero FOUC) -->
+<script>
+  (function () {
+    try {
+      var s = localStorage.getItem('fogbot_theme_mode') || 'system';
+      var t = s === 'system' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : s;
+      document.documentElement.setAttribute('data-theme', t);
+      document.documentElement.setAttribute('data-theme-setting', s);
+    } catch (e) {}
+  })();
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style-landing.css">
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
 </head>
 <body>
 
@@ -25,6 +40,7 @@
   </div>
 
   <div class="navbar__right">
+    <div class="theme-switcher"></div>
     <a href="login.html" class="navbar__login">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>

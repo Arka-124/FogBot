@@ -5,10 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FogBot — Autonomous Pilot Command Center | Bailadila Mine</title>
 
-  <!-- Immediate Synchronous Authentication Guard -->
+  <!-- Immediate Synchronous Authentication Guard & Theme Resolution -->
   <script>
     (function () {
       try {
+        var s = localStorage.getItem('fogbot_theme_mode') || 'system';
+        var t = s === 'system' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : s;
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute('data-theme-setting', s);
+
         var session = sessionStorage.getItem('fogbot_session');
         if (!session) {
           window.location.replace('login.html?redirect=dashboard.html');
@@ -32,6 +37,8 @@
   <!-- Core and Dashboard Stylesheets -->
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="style-dashboard.css">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
 </head>
 <body class="dashboard-body">
 
@@ -92,6 +99,7 @@
     </div>
 
     <div class="dash-header__right">
+      <div class="theme-switcher"></div>
       <div class="user-badge">
         <span class="user-badge__dot" aria-hidden="true"></span>
         <span>Operator: <strong id="operatorName">admin</strong></span>

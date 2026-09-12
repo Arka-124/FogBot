@@ -4,10 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FogBot — Authorized Personnel Login | SIH 2026</title>
+
+  <!-- Early Synchronous Theme Resolution (Zero FOUC) -->
+  <script>
+    (function () {
+      try {
+        var s = localStorage.getItem('fogbot_theme_mode') || 'system';
+        var t = s === 'system' ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : s;
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute('data-theme-setting', s);
+      } catch (e) {}
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
   <!-- Google reCAPTCHA v2 API Script -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
@@ -27,6 +42,7 @@
       <img src="assets/sih-logo.png" alt="SIH 2026 Logo" class="portal-header__logo">
     </div>
     <div class="portal-header__actions">
+      <div class="theme-switcher"></div>
       <a href="index.html" class="portal-header__link">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
