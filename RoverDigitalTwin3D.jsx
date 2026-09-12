@@ -133,10 +133,79 @@ export default function RoverDigitalTwin3D({
     lidarHead.position.set(0, 1.82, 0.3);
     roverGroup.add(lidarHead);
 
-    // D. Front Bull-Bar
+    // D. Front Bull-Bar & Ultra-Bright High-Intensity Fog Lights Assembly (Opposite side of rear hazard lights)
+    const frontFogGroup = new THREE.Group();
+    roverGroup.add(frontFogGroup);
+
     const bullBar = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.25, 0.15), darkSteelMat);
     bullBar.position.set(0, 0.45, 1.25);
-    roverGroup.add(bullBar);
+    frontFogGroup.add(bullBar);
+
+    // Fog Lamp Optical Materials
+    const fogLensMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const fogBezelMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 });
+
+    // 1. Left Heavy-Duty Projector Fog Lamp Pod
+    const leftFogHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.08, 24), darkSteelMat);
+    leftFogHousing.rotation.x = Math.PI / 2;
+    leftFogHousing.position.set(-0.48, 0.46, 1.33);
+    frontFogGroup.add(leftFogHousing);
+
+    const leftFogBezel = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.015, 12, 24), fogBezelMat);
+    leftFogBezel.position.set(-0.48, 0.46, 1.37);
+    frontFogGroup.add(leftFogBezel);
+
+    const leftFogLens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 24), fogLensMat);
+    leftFogLens.rotation.x = Math.PI / 2;
+    leftFogLens.position.set(-0.48, 0.46, 1.375);
+    frontFogGroup.add(leftFogLens);
+
+    // 2. Right Heavy-Duty Projector Fog Lamp Pod
+    const rightFogHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.14, 0.08, 24), darkSteelMat);
+    rightFogHousing.rotation.x = Math.PI / 2;
+    rightFogHousing.position.set(0.48, 0.46, 1.33);
+    frontFogGroup.add(rightFogHousing);
+
+    const rightFogBezel = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.015, 12, 24), fogBezelMat);
+    rightFogBezel.position.set(0.48, 0.46, 1.37);
+    frontFogGroup.add(rightFogBezel);
+
+    const rightFogLens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 24), fogLensMat);
+    rightFogLens.rotation.x = Math.PI / 2;
+    rightFogLens.position.set(0.48, 0.46, 1.375);
+    frontFogGroup.add(rightFogLens);
+
+    // 3. Central Auxiliary High-Output LED Fog Light Bar
+    const lightBarHousing = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.10, 0.06), darkSteelMat);
+    lightBarHousing.position.set(0, 0.52, 1.32);
+    frontFogGroup.add(lightBarHousing);
+
+    const lightBarLens = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.07, 0.02), fogLensMat);
+    lightBarLens.position.set(0, 0.52, 1.355);
+    frontFogGroup.add(lightBarLens);
+
+    // 4. Very Bright Forward Projection Lights (Pierces deep into the fog)
+    const frontFogSpot = new THREE.SpotLight(0xffffff, 16.0, 35.0);
+    frontFogSpot.position.set(0, 0.55, 1.38);
+    frontFogSpot.angle = Math.PI / 3.5;
+    frontFogSpot.penumbra = 0.5;
+    frontFogSpot.decay = 1.2;
+    frontFogSpot.castShadow = true;
+
+    const fogSpotTarget = new THREE.Object3D();
+    fogSpotTarget.position.set(0, 0.1, 16.0);
+    scene.add(fogSpotTarget);
+    frontFogSpot.target = fogSpotTarget;
+    scene.add(frontFogSpot);
+
+    // High-intensity near-field & lateral fog illumination
+    const leftFogLight = new THREE.PointLight(0xffffff, 5.5, 12.0);
+    leftFogLight.position.set(-0.48, 0.48, 1.42);
+    scene.add(leftFogLight);
+
+    const rightFogLight = new THREE.PointLight(0xffffff, 5.5, 12.0);
+    rightFogLight.position.set(0.48, 0.48, 1.42);
+    scene.add(rightFogLight);
 
     // E. LARGE REAR HAZARD LIGHT ASSEMBLY (For Trailing Dumper Truck Driver)
     const rearHazardGroup = new THREE.Group();
