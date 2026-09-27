@@ -4,8 +4,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify",
-    "build:3d": "npx esbuild rover3d.js --bundle --outfile=rover3d.bundle.js --format=iife --minify"
+    "build": "npx esbuild src/rover3d.js --bundle --outfile=js/rover3d.bundle.js --format=iife --minify",
+    "build:3d": "npx esbuild src/rover3d.js --bundle --outfile=js/rover3d.bundle.js --format=iife --minify"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

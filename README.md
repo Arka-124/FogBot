@@ -331,24 +331,37 @@ Designed specifically for live SIH demonstration:
 ```
 FogBot/
 ├── assets/                       # Visual assets, branding, and imagery
-│   ├── nmdc-logo.png            # Official NMDC emblem
-│   ├── sih-logo.png             # Smart India Hackathon 2026 logo
-│   └── rover-photo.png          # Hardware prototype reference photo
-├── docker-compose.yml            # Containerized MySQL 8.0 service definition
-├── init.sql                      # Database schema and seed user credentials
+│   ├── nmdc-logo.png             # Official NMDC emblem
+│   ├── sih-logo.png              # Smart India Hackathon 2026 logo
+│   ├── rover-photo.png           # Hardware prototype reference photo
+│   ├── rover.png                 # Pilot rover graphic & favicon
+│   └── scan_points.json          # STL-19P LiDAR 1,500-point point cloud scan
+├── css/                          # Modular stylesheets
+│   ├── style.css                 # Base design system & login portal styles
+│   ├── style-landing.css         # 3D Digital Twin landing page styles
+│   ├── style-dashboard.css       # In-Cab HUD & Command Center layout
+│   └── theme.css                 # Cyber-slate light/dark theme tokens
+├── js/                           # Client-side scripts
+│   ├── dashboard.js              # Command center telemetry, radar & HUD engine
+│   ├── rover3d.bundle.js         # Minified standalone 3D twin bundle
+│   ├── script-landing.js         # Landing page animations & telemetry counters
+│   ├── script.js                 # Login portal auth & reCAPTCHA controller
+│   └── theme.js                  # Zero-FOUC theme resolver & switcher
+├── src/                          # Developer source & component modules
+│   ├── rover3d.js                # Three.js 3D Digital Twin engine (ES Module source)
+│   └── RoverDigitalTwin3D.jsx    # Standalone React Three Fiber component
+├── database/                     # Database schemas & migrations
+│   └── init.sql                  # MySQL 8.0 schema and seed user credentials
+├── .agents/                      # Autonomous coding agent blueprints & skills
+├── dashboard.html                # Pilot Command Center & In-Cab HUD interface
 ├── index.html                    # 3D Digital Twin landing page & system overview
-├── style-landing.css             # Industrial high-tech responsive stylesheet
-├── script-landing.js             # UI animations, telemetry counters, and interactions
 ├── login.html                    # Operator dispatch authentication interface
-├── style.css                     # Login interface styling and responsive rules
-├── script.js                     # reCAPTCHA handler and login form controller
-├── rover3d.js                    # Three.js 3D Digital Twin engine (ES Module)
-├── rover3d.bundle.js             # Minified standalone 3D twin bundle
-├── RoverDigitalTwin3D.jsx        # Standalone React Three Fiber component
-├── server.js                     # Express.js REST API with cloud fallback & reCAPTCHA
+├── server.js                     # Express.js REST API & WebSocket real-time server
+├── docker-compose.yml            # Containerized MySQL 8.0 service definition
 ├── package.json                  # Node.js project manifest and build scripts
 ├── package-lock.json             # Locked dependency tree
 ├── render.yaml                   # Infrastructure-as-code blueprint for Render
+├── AGENTS.md                     # Project invariants & architectural rules
 ├── .env.example                  # Environment configuration template
 ├── .env                          # Local environment secrets (ignored by Git)
 ├── .gitignore                    # Version control exclusion rules
