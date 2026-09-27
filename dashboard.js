@@ -36,8 +36,11 @@
     return;
   }
 
-  // Current active persona
-  let currentRole = sessionRole || 'operator';
+  // Authentic role from verified login session (immutable)
+  const authenticatedRole = sessionRole || 'operator';
+
+  // Current active viewing persona (defaults strictly to authenticated role)
+  let currentRole = authenticatedRole;
 
   // =========================================================================
   // 2. DOM REFERENCES
@@ -50,6 +53,7 @@
   const operatorName = document.getElementById('operatorName');
   const roleBadge = document.getElementById('roleBadge');
   const roleSwitchSelect = document.getElementById('roleSwitchSelect');
+  const demoRoleSwitcher = document.getElementById('demoRoleSwitcher');
   const roleNoticeBanner = document.getElementById('roleNoticeBanner');
 
   // Sections
@@ -194,12 +198,8 @@
     // 2. Role Notice Banner
     if (roleNoticeBanner) {
       if (role === 'field_worker') {
-        roleNoticeBanner.style.display = 'flex';
-        roleNoticeBanner.className = 'role-notice-banner is-worker';
-        roleNoticeBanner.innerHTML = `
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-          <span><strong>HAUL TRUCK IN-CAB MODE:</strong> Showing streamlined safety decisions, headway gap, and speed regulation. Raw 1,500-point LiDAR point clouds and AI formula internals are filtered on the backend to eliminate in-motion cab distractions.</span>
-        `;
+        // Yellow caution box permanently removed from driver dashboard as requested
+        roleNoticeBanner.style.display = 'none';
       } else if (role === 'guest') {
         roleNoticeBanner.style.display = 'flex';
         roleNoticeBanner.className = 'role-notice-banner is-guest';
@@ -442,19 +442,74 @@
     fogSlider.addEventListener('change', handleFogSliderChange);
   }
 
-  // SIH Judge Demo: 1-Click Role Switcher listener
+  // Configure dropdown options based on the authenticated user's actual login role
+  function configureRoleSwitcherUI() {
+    if (!demoRoleSwitcher || !roleSwitchSelect) return;
+
+    if (authenticatedRole === 'field_worker') {
+      // Field Worker accounts CANNOT switch views at all
+      demoRoleSwitcher.style.display = 'none';
+      return;
+    }
+
+    if (authenticatedRole === 'operator') {
+      // Operator CANNOT switch to Admin view - Admin option omitted!
+      demoRoleSwitcher.style.display = 'flex';
+      roleSwitchSelect.innerHTML = `
+        <option value="operator">🎛️ Operator</option>
+        <option value="field_worker">👷 Field Worker</option>
+        <option value="guest">👁️ Guest / Judge</option>
+      `;
+      roleSwitchSelect.value = currentRole === 'admin' ? 'operator' : currentRole;
+      return;
+    }
+
+    if (authenticatedRole === 'guest') {
+      // Guest accounts cannot switch to operational roles
+      demoRoleSwitcher.style.display = 'none';
+      return;
+    }
+
+    if (authenticatedRole === 'admin') {
+      // Admin has full switcher access across all 4 personas
+      demoRoleSwitcher.style.display = 'flex';
+      roleSwitchSelect.innerHTML = `
+        <option value="admin">🛡️ Admin</option>
+        <option value="operator">🎛️ Operator</option>
+        <option value="field_worker">👷 Field Worker</option>
+        <option value="guest">👁️ Guest / Judge</option>
+      `;
+      roleSwitchSelect.value = currentRole;
+    }
+  }
+
+  // SIH Judge Demo: Role Switcher listener with strict permission enforcement
   if (roleSwitchSelect) {
-    roleSwitchSelect.value = currentRole;
     roleSwitchSelect.addEventListener('change', function (e) {
       const newRole = e.target.value;
-      applyRoleLayout(newRole);
 
-      // Persist in session
-      try {
-        const s = JSON.parse(sessionStorage.getItem('fogbot_session') || '{}');
-        s.role = newRole;
-        sessionStorage.setItem('fogbot_session', JSON.stringify(s));
-      } catch (err) {}
+      // 1. Field Worker cannot switch views at all
+      if (authenticatedRole === 'field_worker') {
+        alert('Access Denied: Field Worker accounts are locked to the In-Cab Driver HUD and cannot switch views.');
+        roleSwitchSelect.value = 'field_worker';
+        return;
+      }
+
+      // 2. Operator cannot switch to Admin view
+      if (authenticatedRole === 'operator' && newRole === 'admin') {
+        alert('Access Denied: Operator accounts cannot switch to Admin view.');
+        roleSwitchSelect.value = currentRole;
+        return;
+      }
+
+      // 3. Guest accounts cannot switch to Admin or Operator view
+      if (authenticatedRole === 'guest' && (newRole === 'admin' || newRole === 'operator')) {
+        alert('Access Denied: Guest accounts cannot switch to Admin or Operator view.');
+        roleSwitchSelect.value = currentRole;
+        return;
+      }
+
+      applyRoleLayout(newRole);
 
       // Inform backend via WebSocket
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -894,6 +949,7 @@
   // =========================================================================
   // 1. Initial UI layout based on session role
   applyRoleLayout(currentRole);
+  configureRoleSwitcherUI();
 
   // 2. Fetch real initial LiDAR scan points if permitted (Admin/Operator)
   if (currentRole === 'admin' || currentRole === 'operator') {

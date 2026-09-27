@@ -416,6 +416,7 @@ wss.on('connection', (ws, req) => {
     clientRole = 'guest';
   }
 
+  ws.authenticatedRole = clientRole; // Immutable authenticated role from JWT
   ws.clientRole = clientRole;
   ws.clientUser = clientUser;
   console.log(`[WebSocket] Client connected: ${clientUser} (Role: ${clientRole})`);
@@ -461,16 +462,42 @@ wss.on('connection', (ws, req) => {
       }
 
       if (parsed.action === 'SWITCH_ROLE_DEMO') {
-        // Judge demo testing mode: allows switching client session role for evaluation
-        if (['admin', 'operator', 'field_worker', 'guest'].includes(parsed.role)) {
-          ws.clientRole = parsed.role;
+        const targetRole = parsed.role;
+
+        // 1. Field Worker cannot switch views at all
+        if (ws.authenticatedRole === 'field_worker') {
+          return ws.send(JSON.stringify({
+            type: 'ACTION_REJECTED',
+            error: 'Forbidden: Field Worker accounts are locked to the In-Cab Driver HUD and cannot switch views.'
+          }));
+        }
+
+        // 2. Operator cannot switch to Admin view
+        if (ws.authenticatedRole === 'operator' && targetRole === 'admin') {
+          return ws.send(JSON.stringify({
+            type: 'ACTION_REJECTED',
+            error: 'Forbidden: Operator accounts cannot switch to Admin view.'
+          }));
+        }
+
+        // 3. Guest accounts cannot switch to Admin or Operator view
+        if (ws.authenticatedRole === 'guest' && (targetRole === 'admin' || targetRole === 'operator')) {
+          return ws.send(JSON.stringify({
+            type: 'ACTION_REJECTED',
+            error: 'Forbidden: Guest accounts cannot switch to Admin or Operator view.'
+          }));
+        }
+
+        // Allow authorized view switch
+        if (['admin', 'operator', 'field_worker', 'guest'].includes(targetRole)) {
+          ws.clientRole = targetRole;
           const updatedSlice = sliceTelemetryForRole(masterTelemetry, ws.clientRole);
           ws.send(JSON.stringify({
             type: 'ROLE_SWITCHED',
             role: ws.clientRole,
             data: updatedSlice
           }));
-          console.log(`[WebSocket] Client ${ws.clientUser} switched demo role to: ${ws.clientRole}`);
+          console.log(`[WebSocket] Client ${ws.clientUser} (Auth: ${ws.authenticatedRole}) switched demo role to: ${ws.clientRole}`);
         }
       }
 

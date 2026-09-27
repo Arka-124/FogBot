@@ -1208,14 +1208,7 @@ body.dashboard-body {
 }
 
 .role-notice-banner.is-worker {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #FDE68A;
-}
-
-.role-notice-banner.is-worker svg {
-  color: #F59E0B;
-  flex-shrink: 0;
+  display: none !important; /* Yellow caution box permanently removed from driver dashboard */
 }
 
 .role-notice-banner.is-guest {
@@ -1235,8 +1228,8 @@ body.dashboard-body {
 .cab-hud-section {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 28px;
+  margin-bottom: 28px;
 }
 
 /* High-Contrast Decision Status Banner */
@@ -1244,11 +1237,12 @@ body.dashboard-body {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 20px 24px;
+  padding: 22px 26px;
   border-radius: 12px;
   border: 2px solid transparent;
   transition: all 0.3s ease;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  margin-bottom: 16px; /* Generous spacing between green safe banner and metric boxes */
 }
 
 .cab-hud-banner.is-safe {
