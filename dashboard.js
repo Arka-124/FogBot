@@ -60,6 +60,7 @@
   const kpiStripSection = document.getElementById('kpiStripSection');
   const mainGridSection = document.getElementById('mainGridSection');
   const middleGridSection = document.getElementById('middleGridSection');
+  const bottomGridSection = document.getElementById('bottomGridSection');
   const eventLogSection = document.getElementById('eventLogSection');
   const driverCabHud = document.getElementById('driverCabHud');
 
@@ -221,6 +222,7 @@
       // Keep convoy map & telemetry, hide raw event logs
       if (eventLogSection) eventLogSection.style.display = 'none';
       if (middleGridSection) middleGridSection.style.display = 'grid';
+      if (bottomGridSection) bottomGridSection.style.display = 'grid';
       if (kpiStripSection) kpiStripSection.style.display = 'grid';
 
       // Actuator Gating
@@ -239,7 +241,8 @@
       if (driverCabHud) driverCabHud.style.display = 'none';
       if (mainGridSection) mainGridSection.style.display = 'grid';
       if (middleGridSection) middleGridSection.style.display = 'grid';
-      if (eventLogSection) eventLogSection.style.display = 'block';
+      if (bottomGridSection) bottomGridSection.style.display = 'grid';
+      if (eventLogSection) eventLogSection.style.display = 'flex';
       if (kpiStripSection) kpiStripSection.style.display = 'grid';
 
       // Lock actuation controls in Read-Only Demo Safe Mode
@@ -259,7 +262,8 @@
       if (driverCabHud) driverCabHud.style.display = 'none';
       if (mainGridSection) mainGridSection.style.display = 'grid';
       if (middleGridSection) middleGridSection.style.display = 'grid';
-      if (eventLogSection) eventLogSection.style.display = 'block';
+      if (bottomGridSection) bottomGridSection.style.display = 'grid';
+      if (eventLogSection) eventLogSection.style.display = 'flex';
       if (kpiStripSection) kpiStripSection.style.display = 'grid';
 
       if (btnEstop) {

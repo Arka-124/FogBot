@@ -434,14 +434,14 @@ body.dashboard-body {
   100% { opacity: 1; filter: brightness(1.2); }
 }
 
-/* ============ 2-COLUMN MAIN SECTION ============ */
+/* ============ ROW 1: PERCEPTION GRID (CAMERA & LIDAR SIDE-BY-SIDE) ============ */
 .main-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .main-grid {
     grid-template-columns: 1fr;
   }
@@ -497,16 +497,17 @@ body.dashboard-body {
   color: var(--muted-400);
 }
 
-.left-stack {
+/* Camera Placeholder Panel */
+.camera-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  height: 100%;
 }
 
-/* Camera Placeholder Panel */
 .camera-box {
   position: relative;
-  height: 220px;
+  flex: 1;
+  min-height: 380px;
   background: #020617;
   display: flex;
   flex-direction: column;
@@ -609,11 +610,16 @@ body.dashboard-body {
 /* LiDAR Scan Panel */
 .lidar-panel {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .lidar-canvas-container {
   position: relative;
   width: 100%;
+  flex: 1;
+  min-height: 380px;
   background: #020617;
   display: flex;
   align-items: center;
@@ -806,24 +812,32 @@ body.dashboard-body {
   line-height: 1.45;
 }
 
-/* ============ MIDDLE ROW (TELEMETRY & MAP) ============ */
+/* ============ ROW 2: ANALYTICS GRID (AI RISK ENGINE & TELEMETRY SIDE-BY-SIDE) ============ */
 .middle-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .middle-grid {
     grid-template-columns: 1fr;
   }
 }
 
+.telemetry-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .telemetry-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
   padding: 20px;
+  flex: 1;
+  align-content: stretch;
 }
 
 .telem-item {
@@ -873,11 +887,31 @@ body.dashboard-body {
   transition: width 0.3s;
 }
 
+/* ============ ROW 3: OPERATIONS GRID (CONVOY POSITIONING & EVENT LOG SIDE-BY-SIDE) ============ */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.convoy-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Map Canvas Container */
 .map-canvas-container {
   position: relative;
   width: 100%;
-  height: 220px;
+  height: 240px;
+  flex: 1;
   background: #020617;
   overflow: hidden;
   display: flex;
@@ -911,14 +945,17 @@ body.dashboard-body {
   color: var(--cyan);
 }
 
-/* ============ EVENT LOG ============ */
+/* Mission Event Log Panel */
 .event-log-panel {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .event-log-stream {
-  max-height: 200px;
+  flex: 1;
+  height: 240px;
+  max-height: 240px;
   overflow-y: auto;
   padding: 14px 20px;
   display: flex;
@@ -1421,5 +1458,17 @@ body.dashboard-body {
   color: var(--orange);
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+/* ============ ROLE-SPECIFIC HUD OVERRIDES ============ */
+body[data-role="field_worker"] .risk-engine-card,
+body[data-role="field_worker"] .event-log-panel,
+body[data-role="field_worker"] #mainGridSection {
+  display: none !important;
+}
+
+body[data-role="field_worker"] .middle-grid,
+body[data-role="field_worker"] .bottom-grid {
+  grid-template-columns: 1fr;
 }
 

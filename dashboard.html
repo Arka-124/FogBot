@@ -239,63 +239,63 @@
 
     </section>
 
-    <!-- MAIN TWO-COLUMN SECTION -->
-    <section class="main-grid" id="mainGridSection">
+    <!-- ============ ROW 1: PERCEPTION SUITE (CAMERA FEED + LIDAR SCAN SIDE BY SIDE) ============ -->
+    <section class="main-grid" id="mainGridSection" aria-label="Perception Suite">
       
-      <!-- LEFT STACK: Camera Feed + LiDAR Scan -->
-      <div class="left-stack">
-        
-        <!-- Camera Feed Panel (Placeholder with centered text) -->
-        <article class="dash-panel">
-          <div class="dash-panel__header">
-            <div class="dash-panel__title-wrap">
-              <span class="dash-panel__dot" aria-hidden="true"></span>
-              <h2 class="dash-panel__title">Camera Feed // Forward FLIR Optical Sensor</h2>
-            </div>
-            <span class="dash-panel__meta">1080p @ 30 FPS</span>
+      <!-- Panel 1: Camera Feed Panel -->
+      <article class="dash-panel camera-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">Camera Feed // Forward FLIR Optical Sensor</h2>
           </div>
+          <span class="dash-panel__meta">1080p @ 30 FPS</span>
+        </div>
 
-          <div class="camera-box">
-            <div class="camera-box__scanline" aria-hidden="true"></div>
-            <div class="camera-box__hud-crosshair" aria-hidden="true"></div>
+        <div class="camera-box">
+          <div class="camera-box__scanline" aria-hidden="true"></div>
+          <div class="camera-box__hud-crosshair" aria-hidden="true"></div>
 
-            <div class="camera-box__content">
-              <div class="camera-box__icon-wrap">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                  <circle cx="12" cy="13" r="4"/>
-                </svg>
-              </div>
-              <p class="camera-box__main-text">Camera feed &mdash; pending YOLO integration</p>
-              <p class="camera-box__sub-text">Optical sensor viewport ready for real-time bounding box object detection.</p>
-              <span class="camera-box__status-pill">FLIR Tau2 Thermal Sensor Hub &bull; Standby</span>
+          <div class="camera-box__content">
+            <div class="camera-box__icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
             </div>
+            <p class="camera-box__main-text">Camera feed &mdash; pending YOLO integration</p>
+            <p class="camera-box__sub-text">Optical sensor viewport ready for real-time bounding box object detection.</p>
+            <span class="camera-box__status-pill">FLIR Tau2 Thermal Sensor Hub &bull; Standby</span>
           </div>
-        </article>
+        </div>
+      </article>
 
-        <!-- LiDAR Scan Panel -->
-        <article class="dash-panel lidar-panel">
-          <div class="dash-panel__header">
-            <div class="dash-panel__title-wrap">
-              <span class="dash-panel__dot" style="background: var(--cyan); box-shadow: 0 0 8px var(--cyan);" aria-hidden="true"></span>
-              <h2 class="dash-panel__title">LiDAR Scan // 360&deg; Top-Down Point Scatter</h2>
-            </div>
-            <span class="dash-panel__meta">assets/scan_points.json &bull; 1,500 pts</span>
+      <!-- Panel 2: LiDAR Scan Panel -->
+      <article class="dash-panel lidar-panel">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" style="background: var(--cyan); box-shadow: 0 0 8px var(--cyan);" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">LiDAR Scan // 360&deg; Top-Down Point Scatter</h2>
           </div>
+          <span class="dash-panel__meta">assets/scan_points.json &bull; 1,500 pts</span>
+        </div>
 
-          <div class="lidar-canvas-container">
-            <canvas id="lidarCanvas" width="600" height="420" aria-label="LiDAR point cloud top-down radar view"></canvas>
-            
-            <div class="lidar-hud-overlay">
-              <div class="lidar-badge">Cutoff Range: <span id="lidarCutoffText">Active (Visibility Bound)</span></div>
-              <div class="lidar-badge">Orientation: <span>028&deg; NNE</span></div>
-            </div>
+        <div class="lidar-canvas-container">
+          <canvas id="lidarCanvas" width="600" height="420" aria-label="LiDAR point cloud top-down radar view"></canvas>
+          
+          <div class="lidar-hud-overlay">
+            <div class="lidar-badge">Cutoff Range: <span id="lidarCutoffText">Active (Visibility Bound)</span></div>
+            <div class="lidar-badge">Orientation: <span>028&deg; NNE</span></div>
           </div>
-        </article>
+        </div>
+      </article>
 
-      </div>
+    </section>
 
-      <!-- RIGHT COLUMN: AI Risk Engine Card -->
+    <!-- ============ ROW 2: AI RISK ENGINE & VEHICLE TELEMETRY SIDE BY SIDE ============ -->
+    <section class="middle-grid" id="middleGridSection" aria-label="AI Risk Engine and Vehicle Telemetry">
+      
+      <!-- Panel 3: AI Risk Engine Card -->
       <aside class="dash-panel risk-engine-card">
         <div class="dash-panel__header">
           <div class="dash-panel__title-wrap">
@@ -359,13 +359,8 @@
         </div>
       </aside>
 
-    </section>
-
-    <!-- MIDDLE ROW: Vehicle Telemetry & Convoy Map -->
-    <section class="middle-grid" id="middleGridSection">
-      
-      <!-- Card A: Vehicle Telemetry -->
-      <article class="dash-panel">
+      <!-- Panel 4: Vehicle Telemetry -->
+      <article class="dash-panel telemetry-card">
         <div class="dash-panel__header">
           <div class="dash-panel__title-wrap">
             <span class="dash-panel__dot" style="background: var(--cyan);" aria-hidden="true"></span>
@@ -412,8 +407,13 @@
         </div>
       </article>
 
-      <!-- Card B: Convoy Positioning Map -->
-      <article class="dash-panel">
+    </section>
+
+    <!-- ============ ROW 3: CONVOY POSITIONING & MISSION EVENT LOG SIDE BY SIDE ============ -->
+    <section class="bottom-grid" id="bottomGridSection" aria-label="Convoy Positioning and Mission Event Log">
+      
+      <!-- Panel 5: Convoy Positioning Map -->
+      <article class="dash-panel convoy-panel">
         <div class="dash-panel__header">
           <div class="dash-panel__title-wrap">
             <span class="dash-panel__dot" style="background: var(--orange);" aria-hidden="true"></span>
@@ -433,23 +433,23 @@
         </div>
       </article>
 
-    </section>
-
-    <!-- BOTTOM ROW: Event Log -->
-    <section class="dash-panel event-log-panel" id="eventLogSection">
-      <div class="dash-panel__header">
-        <div class="dash-panel__title-wrap">
-          <span class="dash-panel__dot" style="background: #38BDF8;" aria-hidden="true"></span>
-          <h2 class="dash-panel__title">Mission Event Log // State Change Recorder</h2>
+      <!-- Panel 6: Mission Event Log -->
+      <article class="dash-panel event-log-panel" id="eventLogSection">
+        <div class="dash-panel__header">
+          <div class="dash-panel__title-wrap">
+            <span class="dash-panel__dot" style="background: #38BDF8;" aria-hidden="true"></span>
+            <h2 class="dash-panel__title">Mission Event Log // State Change Recorder</h2>
+          </div>
+          <button type="button" id="btnClearLog" class="btn-logout" style="padding: 3px 8px;" aria-label="Clear event log">
+            Clear Log
+          </button>
         </div>
-        <button type="button" id="btnClearLog" class="btn-logout" style="padding: 3px 8px;" aria-label="Clear event log">
-          Clear Log
-        </button>
-      </div>
 
-      <div id="eventLogStream" class="event-log-stream" role="log" aria-live="polite">
-        <!-- Log entries populated on state changes -->
-      </div>
+        <div id="eventLogStream" class="event-log-stream" role="log" aria-live="polite">
+          <!-- Log entries populated on state changes -->
+        </div>
+      </article>
+
     </section>
 
   </main>
