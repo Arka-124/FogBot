@@ -136,11 +136,13 @@
         const data = await response.json();
 
         if (response.ok && data.success) {
-          // Store authentication session
+          // Store authentication session with real JWT token and role
           sessionStorage.setItem('fogbot_session', JSON.stringify({
             authenticated: true,
-            userId: userId,
-            token: 'auth_' + Date.now(),
+            userId: data.user ? data.user.userId : userId,
+            role: data.user ? data.user.role : 'operator',
+            fullName: data.user ? data.user.fullName : userId,
+            token: data.token,
             loginTime: new Date().toISOString()
           }));
 
@@ -160,8 +162,8 @@
               const urlParams = new URLSearchParams(window.location.search);
               const target = urlParams.get('redirect') || 'dashboard.html';
               window.location.href = target;
-            }, 1000);
-          }, 1200);
+            }, 800);
+          }, 900);
 
         } else {
           // Authentication or reCAPTCHA failure
@@ -184,6 +186,22 @@
       }
     });
   }
+
+  // Multi-role quick-fill pill click listeners
+  const rolePills = document.querySelectorAll('.role-pill');
+  rolePills.forEach((pill) => {
+    pill.addEventListener('click', function () {
+      rolePills.forEach((p) => p.classList.remove('is-active'));
+      this.classList.add('is-active');
+
+      const user = this.getAttribute('data-user') || '';
+      const pass = this.getAttribute('data-pass') || '';
+
+      if (userIdInput) userIdInput.value = user;
+      if (passwordInput) passwordInput.value = pass;
+      clearFeedback();
+    });
+  });
 
   // Check if user was redirected from protected dashboard
   const urlParams = new URLSearchParams(window.location.search);

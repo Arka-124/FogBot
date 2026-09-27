@@ -149,16 +149,32 @@
 
       </form>
 
-      <!-- Card Footer Notice -->
+      <!-- Card Footer Notice with 1-Click Multi-Role Selectors for Judges -->
       <div class="login-card__footer">
-        <div class="demo-credentials">
-          <span class="demo-credentials__label">Demo Credentials:</span>
-          <code>User ID: admin</code>
-          <span class="demo-credentials__divider">|</span>
-          <code>Password: password123</code>
+        <div class="role-selector-wrap">
+          <span class="role-selector__title">Quick-Fill Persona (SIH Demo / Evaluation):</span>
+          <div class="role-pills-row">
+            <button type="button" class="role-pill is-active" data-user="admin" data-pass="password123" data-role="admin" title="System Administrator / Chief Engineer">
+              <span class="role-pill__icon">🛡️</span>
+              <span class="role-pill__name">Admin</span>
+            </button>
+            <button type="button" class="role-pill" data-user="operator" data-pass="operator123" data-role="operator" title="Control Room Dispatcher">
+              <span class="role-pill__icon">🎛️</span>
+              <span class="role-pill__name">Operator</span>
+            </button>
+            <button type="button" class="role-pill" data-user="driver" data-pass="driver123" data-role="field_worker" title="CAT 777D Haul Truck Driver">
+              <span class="role-pill__icon">👷</span>
+              <span class="role-pill__name">Field Worker</span>
+            </button>
+            <button type="button" class="role-pill" data-user="judge" data-pass="guest123" data-role="guest" title="Visiting SIH Judge / Safety Auditor">
+              <span class="role-pill__icon">👁️</span>
+              <span class="role-pill__name">Guest / Judge</span>
+            </button>
+          </div>
         </div>
+
         <div class="security-meta">
-          <span>Protected by 256-bit SSL &bull; Problem Statement SIH26007</span>
+          <span>Protected by 256-bit SSL &bull; Problem Statement SIH26007 &bull; NMDC Limited</span>
         </div>
       </div>
 

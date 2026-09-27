@@ -98,13 +98,25 @@
         </svg>
         <span id="estopText">EMERGENCY STOP</span>
       </button>
+
+      <!-- SIH Evaluation Quick Role Switcher -->
+      <div class="demo-role-switcher" title="SIH Evaluation Demo: Switch simulated persona in 1-click">
+        <span class="demo-role-switcher__label">Role:</span>
+        <select id="roleSwitchSelect" class="role-switch-select" aria-label="Switch Role View for Demonstration">
+          <option value="admin">🛡️ Admin</option>
+          <option value="operator">🎛️ Operator</option>
+          <option value="field_worker">👷 Field Worker</option>
+          <option value="guest">👁️ Guest / Judge</option>
+        </select>
+      </div>
     </div>
 
     <div class="dash-header__right">
       <div class="theme-switcher"></div>
+      <div class="role-pill-badge" id="roleBadge">🛡️ ADMIN</div>
       <div class="user-badge">
         <span class="user-badge__dot" aria-hidden="true"></span>
-        <span>Operator: <strong id="operatorName">admin</strong></span>
+        <span id="userBadgeText">User: <strong id="operatorName">admin</strong></span>
       </div>
       <button type="button" id="logoutBtn" class="btn-logout" title="Sign Out & Lock Terminal">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,8 +132,65 @@
   <!-- ============ MAIN CONTENT CONTAINER ============ -->
   <main class="dash-container">
 
+    <!-- Role Context Banner -->
+    <div id="roleNoticeBanner" class="role-notice-banner" style="display: none;"></div>
+
+    <!-- ============ FIELD WORKER IN-CAB HEADS-UP DISPLAY (CAB HUD) ============ -->
+    <section id="driverCabHud" class="cab-hud-section" aria-label="In-Cab Driver Heads-Up Display" style="display: none;">
+      <!-- Giant Decision Status Banner -->
+      <div class="cab-hud-banner is-safe" id="cabDecisionBanner">
+        <div class="cab-hud-banner__icon" id="cabDecisionIcon">✓</div>
+        <div class="cab-hud-banner__body">
+          <span class="cab-hud-banner__meta">CONVOY GUIDANCE DECISION // PILOT ROVER-1</span>
+          <h2 class="cab-hud-banner__title" id="cabDecisionTitle">SAFE TO PROCEED</h2>
+        </div>
+        <div class="cab-hud-banner__hazard" id="cabHazardAlert">PILOT CORRIDOR CLEAR</div>
+      </div>
+
+      <!-- Driver Core Metrics Grid -->
+      <div class="cab-hud-grid">
+        <div class="cab-tile cab-tile--speed">
+          <span class="cab-tile__label">RECOMMENDED SPEED LIMIT</span>
+          <div class="cab-tile__val-wrap">
+            <span class="cab-tile__val" id="cabSpeedLimit">25</span>
+            <span class="cab-tile__unit">KM/H</span>
+          </div>
+          <span class="cab-tile__sub">Current Truck Speed: <b id="cabCurrentSpeed">24.5</b> km/h</span>
+        </div>
+
+        <div class="cab-tile cab-tile--gap">
+          <span class="cab-tile__label">FORWARD HEADWAY TO ROVER</span>
+          <div class="cab-tile__val-wrap">
+            <span class="cab-tile__val" id="cabConvoyGap">38.5</span>
+            <span class="cab-tile__unit">METERS</span>
+          </div>
+          <span class="cab-tile__sub">Time to Collision (TTC): <b id="cabTtc">5.6s</b></span>
+        </div>
+
+        <div class="cab-tile cab-tile--status">
+          <span class="cab-tile__label">ESCORT STATUS</span>
+          <div class="cab-tile__val-wrap">
+            <span class="cab-tile__val cab-tile__val--status" id="cabRoverStatus">ESCORTING</span>
+          </div>
+          <span class="cab-tile__sub">Zone: <b>NMDC Bailadila Dep-5</b></span>
+        </div>
+      </div>
+
+      <!-- Cab Interlock Notice -->
+      <div class="cab-hud-notice">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>
+          <strong>DRIVER SAFETY INTERLOCK ACTIVE:</strong> Raw 1,500-point LiDAR point clouds and mathematical AI risk weights are restricted to avoid driver distraction. Remote rover E-Stop actuation is controlled by Central Dispatch. Cab service brakes remain manual override.
+        </span>
+      </div>
+    </section>
+
     <!-- KPI STRIP -->
-    <section class="kpi-strip" aria-label="Key Performance Indicators">
+    <section class="kpi-strip" id="kpiStripSection" aria-label="Key Performance Indicators">
       
       <!-- Metric 1: Active Rovers -->
       <div class="kpi-card">
@@ -183,7 +252,7 @@
     </section>
 
     <!-- MAIN TWO-COLUMN SECTION -->
-    <section class="main-grid">
+    <section class="main-grid" id="mainGridSection">
       
       <!-- LEFT STACK: Camera Feed + LiDAR Scan -->
       <div class="left-stack">
@@ -305,7 +374,7 @@
     </section>
 
     <!-- MIDDLE ROW: Vehicle Telemetry & Convoy Map -->
-    <section class="middle-grid">
+    <section class="middle-grid" id="middleGridSection">
       
       <!-- Card A: Vehicle Telemetry -->
       <article class="dash-panel">
@@ -379,7 +448,7 @@
     </section>
 
     <!-- BOTTOM ROW: Event Log -->
-    <section class="dash-panel event-log-panel">
+    <section class="dash-panel event-log-panel" id="eventLogSection">
       <div class="dash-panel__header">
         <div class="dash-panel__title-wrap">
           <span class="dash-panel__dot" style="background: #38BDF8;" aria-hidden="true"></span>

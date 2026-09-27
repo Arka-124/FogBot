@@ -1,21 +1,26 @@
 /**
  * FogBot Command Center — dashboard.js
- * Client-side simulation, LiDAR canvas point cloud renderer,
- * AI Risk evaluation engine, and telemetry supervisor.
+ * Real-time WebSocket Telemetry Supervisor & Role-Based Access Control (RBAC) Engine.
+ * Supports Admin, Operator, Field Worker (In-Cab HUD), and Guest (Judge-Safe) roles.
  */
 
 (function () {
   'use strict';
 
   // =========================================================================
-  // 1. AUTHENTICATION GUARD
+  // 1. AUTHENTICATION & ROLE RESOLUTION
   // =========================================================================
   const authSession = sessionStorage.getItem('fogbot_session');
   if (!authSession) {
     window.location.replace('login.html?redirect=dashboard.html');
     return;
   }
+
   let sessionUser = 'admin';
+  let sessionRole = 'admin';
+  let sessionFullName = 'Chief Systems Engineer';
+  let sessionToken = '';
+
   try {
     const sessionData = JSON.parse(authSession);
     if (!sessionData.authenticated) {
@@ -23,10 +28,16 @@
       return;
     }
     if (sessionData.userId) sessionUser = sessionData.userId;
+    if (sessionData.role) sessionRole = sessionData.role;
+    if (sessionData.fullName) sessionFullName = sessionData.fullName;
+    if (sessionData.token) sessionToken = sessionData.token;
   } catch (e) {
     window.location.replace('login.html?redirect=dashboard.html');
     return;
   }
+
+  // Current active persona
+  let currentRole = sessionRole || 'operator';
 
   // =========================================================================
   // 2. DOM REFERENCES
@@ -37,11 +48,31 @@
   const estopText = document.getElementById('estopText');
   const logoutBtn = document.getElementById('logoutBtn');
   const operatorName = document.getElementById('operatorName');
+  const roleBadge = document.getElementById('roleBadge');
+  const roleSwitchSelect = document.getElementById('roleSwitchSelect');
+  const roleNoticeBanner = document.getElementById('roleNoticeBanner');
+
+  // Sections
+  const kpiStripSection = document.getElementById('kpiStripSection');
+  const mainGridSection = document.getElementById('mainGridSection');
+  const middleGridSection = document.getElementById('middleGridSection');
+  const eventLogSection = document.getElementById('eventLogSection');
+  const driverCabHud = document.getElementById('driverCabHud');
+
+  // Field Worker Cab HUD elements
+  const cabDecisionBanner = document.getElementById('cabDecisionBanner');
+  const cabDecisionIcon = document.getElementById('cabDecisionIcon');
+  const cabDecisionTitle = document.getElementById('cabDecisionTitle');
+  const cabHazardAlert = document.getElementById('cabHazardAlert');
+  const cabSpeedLimit = document.getElementById('cabSpeedLimit');
+  const cabCurrentSpeed = document.getElementById('cabCurrentSpeed');
+  const cabConvoyGap = document.getElementById('cabConvoyGap');
+  const cabTtc = document.getElementById('cabTtc');
+  const cabRoverStatus = document.getElementById('cabRoverStatus');
 
   // KPI elements
   const kpiVisibility = document.getElementById('kpiVisibility');
   const kpiRiskBadge = document.getElementById('kpiRiskBadge');
-  const kpiSpeedLimit = document.getElementById('kpiSpeedLimit');
 
   // Risk Engine elements
   const inputSpeed = document.getElementById('inputSpeed');
@@ -82,7 +113,7 @@
   const mapCanvas = document.getElementById('mapCanvas');
   const mapCtx = mapCanvas ? mapCanvas.getContext('2d') : null;
 
-  // Set operator display name
+  // Set initial operator display name
   if (operatorName) operatorName.textContent = sessionUser;
 
   // Logout listener
@@ -94,29 +125,30 @@
   }
 
   // =========================================================================
-  // 3. STATE OBJECT & SIMULATION DATA
+  // 3. MASTER STATE OBJECT
   // =========================================================================
   const state = {
-    fogDensity: 14,          // 0 to 100 range from slider (default 14% -> 86% visibility)
-    visibility: 38,          // derived in meters (inversely related to fog)
-    speed: 24.5,             // current rover speed in km/h
-    speedLimit: 25,          // recommended speed limit based on risk
-    riskLevel: 'LOW',        // 'LOW' | 'MEDIUM' | 'HIGH'
-    obstacleActive: false,   // true if synthetic obstacle in path
-    obstacleDist: null,      // distance in meters
-    obstacleX: 0,            // lateral offset in meters
-    gps: {
-      lat: 18.7052,
-      lng: 81.2384,
-      alt: 1182
-    },
-    battery: 84.2,           // battery percentage
-    gap: 38.5,               // distance between rover and truck (m)
-    ttc: 5.6,                // Time To Collision (seconds)
-    eStop: false             // Emergency stop status
+    role: currentRole,
+    fogDensity: 14,
+    visibility: 38,
+    speed: 24.5,
+    speedLimit: 25,
+    riskLevel: 'LOW',
+    obstacleActive: false,
+    obstacleDist: null,
+    obstacleX: 0,
+    gps: { lat: 18.7052, lng: 81.2384, alt: 1182 },
+    battery: 84.2,
+    gap: 38.5,
+    ttc: 5.6,
+    eStop: false,
+    status: 'AUTONOMOUS ESCORTING',
+    hazardAlert: 'PILOT CORRIDOR CLEAR',
+    cameraConfidence: 86,
+    lidarConfidence: 94
   };
 
-  // State tracker for event logging (logs ONLY on state changes)
+  // State tracker for event logging
   let lastLoggedState = {
     riskLevel: null,
     obstacleActive: null,
@@ -124,176 +156,330 @@
     speedLimit: null
   };
 
-  // LiDAR Scan Points array (loaded from assets/scan_points.json)
+  // 1,500 LiDAR points (only populated if backend transmits them to permitted role)
   let scanPoints = [];
-  let isLidarLoaded = false;
 
   // =========================================================================
-  // 4. FETCH REAL LIDAR SCAN POINTS
+  // 4. ROLE-BASED UI GATING & LAYOUT SWITCHER
   // =========================================================================
-  async function loadLidarPoints() {
-    try {
-      const response = await fetch('assets/scan_points.json');
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      scanPoints = await response.json();
-      isLidarLoaded = true;
-      addLogEntry('INFO', `LiDAR point cloud active (${scanPoints.length.toLocaleString()} points loaded).`);
-      renderLidar();
-    } catch (err) {
-      console.warn('[LiDAR Warning] Could not fetch assets/scan_points.json:', err.message);
-      // Fallback synthetic points if file access fails in isolated file:/// protocol
-      generateFallbackPoints();
-      isLidarLoaded = true;
-      renderLidar();
+  function applyRoleLayout(role) {
+    currentRole = role;
+    state.role = role;
+    document.body.setAttribute('data-role', role);
+
+    // Update Role Switcher select value if present
+    if (roleSwitchSelect) {
+      roleSwitchSelect.value = role;
     }
-  }
 
-  function generateFallbackPoints() {
-    scanPoints = [];
-    for (let i = 0; i < 800; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = 2 + Math.random() * 18;
-      scanPoints.push({
-        x: Math.cos(angle) * r,
-        y: Math.sin(angle) * r
-      });
-    }
-  }
-
-  // =========================================================================
-  // 5. SIMULATED TELEMETRY PIPELINE
-  // =========================================================================
-  /**
-   * REPLACE THIS WITH REAL SENSOR INPUT LATER
-   * 
-   * Encapsulates all sensor acquisition, atmospheric modeling, and vehicle
-   * telemetry calculations. When real hardware / ROS2 / WebSocket telemetry
-   * is connected, replace the contents of this function.
-   * 
-   * @param {number} fogValue - Current fog slider position (0-100)
-   * @returns {object} Updated state metrics
-   */
-  function getTelemetry(fogValue) {
-    // 1. Calculate Visibility from Fog Density with random micro-jitter
-    // At fog 0: ~58m visibility; At fog 100: ~5m visibility
-    const baseVis = 58 - (fogValue * 0.52);
-    const visJitter = (Math.random() * 2.4) - 1.2;
-    const computedVisibility = Math.max(4, Math.min(60, Math.round((baseVis + visJitter) * 10) / 10));
-
-    // 2. Obstacle Simulation Logic (15% chance to toggle or shift)
-    let isObstacle = state.obstacleActive;
-    let dist = state.obstacleDist;
-    let xOffset = state.obstacleX;
-
-    // Trigger obstacle occasionally
-    if (!state.eStop) {
-      const roll = Math.random();
-      if (!isObstacle && roll < 0.12) {
-        // New obstacle appears within 10-22 meters ahead
-        isObstacle = true;
-        dist = Math.round((9 + Math.random() * 13) * 10) / 10;
-        xOffset = Math.round(((Math.random() * 4) - 2) * 10) / 10;
-      } else if (isObstacle) {
-        if (roll < 0.18) {
-          // Obstacle cleared
-          isObstacle = false;
-          dist = null;
-        } else {
-          // Obstacle moves slightly or gets closer as rover drives
-          dist = Math.max(3, Math.round((dist - 0.4 + (Math.random() * 0.3 - 0.15)) * 10) / 10);
-        }
+    // 1. Configure Header Role Badge
+    if (roleBadge) {
+      roleBadge.className = `role-pill-badge role-badge--${role}`;
+      switch (role) {
+        case 'admin':
+          roleBadge.innerHTML = '🛡️ ADMIN <span class="role-sub">Full Access</span>';
+          break;
+        case 'operator':
+          roleBadge.innerHTML = '🎛️ OPERATOR <span class="role-sub">Dispatch</span>';
+          break;
+        case 'field_worker':
+          roleBadge.innerHTML = '👷 FIELD WORKER <span class="role-sub">Driver HUD</span>';
+          break;
+        case 'guest':
+          roleBadge.innerHTML = '👁️ GUEST / JUDGE <span class="role-sub">Safe View</span>';
+          break;
       }
     }
 
-    // 3. Determine Risk Level
-    // Rule: visibility < 15 -> HIGH, < 40 -> MEDIUM, else LOW
-    let computedRisk = 'LOW';
-    if (computedVisibility < 15) {
-      computedRisk = 'HIGH';
-    } else if (computedVisibility < 40) {
-      computedRisk = 'MEDIUM';
+    // 2. Role Notice Banner
+    if (roleNoticeBanner) {
+      if (role === 'field_worker') {
+        roleNoticeBanner.style.display = 'flex';
+        roleNoticeBanner.className = 'role-notice-banner is-worker';
+        roleNoticeBanner.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <span><strong>HAUL TRUCK IN-CAB MODE:</strong> Showing streamlined safety decisions, headway gap, and speed regulation. Raw 1,500-point LiDAR point clouds and AI formula internals are filtered on the backend to eliminate in-motion cab distractions.</span>
+        `;
+      } else if (role === 'guest') {
+        roleNoticeBanner.style.display = 'flex';
+        roleNoticeBanner.className = 'role-notice-banner is-guest';
+        roleNoticeBanner.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span><strong>SIH 2026 JUDGE / AUDITOR VIEW:</strong> Executive monitoring mode. High-level telemetry and 3D twin parameters are fully visible, while remote E-STOP and fog actuation are safely locked to prevent accidental operational halts during evaluation.</span>
+        `;
+      } else {
+        roleNoticeBanner.style.display = 'none';
+      }
     }
 
-    // Obstacle presence or proximity escalates risk
-    if (isObstacle && dist !== null && dist < 18) {
-      computedRisk = 'HIGH';
-    }
+    // 3. Section Visibility & Layout Transforms
+    if (role === 'field_worker') {
+      // Show Cab HUD prominently
+      if (driverCabHud) driverCabHud.style.display = 'block';
+      // Hide raw LiDAR canvas & AI math risk engine
+      if (mainGridSection) mainGridSection.style.display = 'none';
+      // Keep convoy map & telemetry, hide raw event logs
+      if (eventLogSection) eventLogSection.style.display = 'none';
+      if (middleGridSection) middleGridSection.style.display = 'grid';
+      if (kpiStripSection) kpiStripSection.style.display = 'grid';
 
-    // E-STOP override
-    if (state.eStop) {
-      computedRisk = 'HIGH';
-    }
+      // Actuator Gating
+      if (btnEstop) {
+        btnEstop.disabled = true;
+        btnEstop.classList.add('is-disabled');
+        btnEstop.title = 'Remote E-Stop restricted to Central Dispatch. In-cab braking armed.';
+        if (estopText) estopText.textContent = 'E-STOP (CAB ARMED)';
+      }
+      if (fogSlider) {
+        fogSlider.disabled = true;
+        fogSlider.title = 'Environmental simulation restricted to Dispatch/Admin.';
+      }
+    } else if (role === 'guest') {
+      // Guest / Judge Safe View
+      if (driverCabHud) driverCabHud.style.display = 'none';
+      if (mainGridSection) mainGridSection.style.display = 'grid';
+      if (middleGridSection) middleGridSection.style.display = 'grid';
+      if (eventLogSection) eventLogSection.style.display = 'block';
+      if (kpiStripSection) kpiStripSection.style.display = 'grid';
 
-    // 4. Calculate Recommended Speed Limit
-    let recLimit = 35;
-    if (state.eStop) {
-      recLimit = 0;
-    } else if (computedRisk === 'HIGH') {
-      recLimit = 10;
-    } else if (computedRisk === 'MEDIUM') {
-      recLimit = 22;
+      // Lock actuation controls in Read-Only Demo Safe Mode
+      if (btnEstop) {
+        btnEstop.disabled = true;
+        btnEstop.classList.add('is-disabled');
+        btnEstop.title = 'Emergency Stop locked in Guest / Judge demonstration mode.';
+        if (estopText) estopText.textContent = 'E-STOP (VIEW ONLY)';
+      }
+      if (fogSlider) {
+        fogSlider.disabled = false; // Allow judges to play with fog slider to test adaptive speed response
+        fogSlider.title = 'Judge Interactive Fog Sandbox: Drag to observe real-time AI speed throttle.';
+      }
+      if (btnClearLog) btnClearLog.style.display = 'none';
     } else {
-      recLimit = 35;
+      // Admin & Operator
+      if (driverCabHud) driverCabHud.style.display = 'none';
+      if (mainGridSection) mainGridSection.style.display = 'grid';
+      if (middleGridSection) middleGridSection.style.display = 'grid';
+      if (eventLogSection) eventLogSection.style.display = 'block';
+      if (kpiStripSection) kpiStripSection.style.display = 'grid';
+
+      if (btnEstop) {
+        btnEstop.disabled = false;
+        btnEstop.classList.remove('is-disabled');
+        btnEstop.title = 'Emergency Stop (Active Dispatch Control)';
+        if (estopText) estopText.textContent = state.eStop ? 'RESET E-STOP' : 'EMERGENCY STOP';
+      }
+      if (fogSlider) {
+        fogSlider.disabled = false;
+        fogSlider.title = 'Simulate atmospheric fog density';
+      }
+      if (btnClearLog) btnClearLog.style.display = 'block';
     }
 
-    // 5. Vehicle Speed calculation (converges toward limit with realistic jitter)
-    let currentSpeed = state.speed;
-    if (state.eStop) {
-      currentSpeed = 0;
-    } else {
-      const speedDiff = recLimit - currentSpeed;
-      currentSpeed += speedDiff * 0.35 + ((Math.random() * 1.2) - 0.6);
-      currentSpeed = Math.max(0, Math.round(currentSpeed * 10) / 10);
-    }
-
-    // 6. Convoy Gap and TTC (Time To Collision with trailing haul truck)
-    let currentGap = state.gap;
-    if (state.eStop) {
-      // Emergency braking narrows gap as truck reacts
-      currentGap = Math.max(18, Math.round((currentGap - 0.8) * 10) / 10);
-    } else {
-      currentGap = Math.round((36 + (Math.random() * 4 - 2)) * 10) / 10;
-    }
-
-    // TTC = Gap / relative velocity or safe headway calculation
-    const truckSpeed = currentSpeed + ((Math.random() * 1.0) - 0.5);
-    const relSpeed = Math.abs(truckSpeed - currentSpeed) + 4.5;
-    const computedTtc = Math.max(1.8, Math.round((currentGap / relSpeed) * 10) / 10);
-
-    // 7. GPS progression along haul road (Bailadila Deposit 5 downhaul)
-    const latIncrement = (currentSpeed / 3600) * 0.0001;
-    const newLat = Math.round((state.gps.lat + latIncrement) * 10000) / 10000;
-    const newLng = Math.round((state.gps.lng + (latIncrement * 0.4)) * 10000) / 10000;
-
-    // 8. Battery consumption
-    const newBattery = Math.max(12, Math.round((state.battery - 0.005) * 100) / 100);
-
-    return {
-      fogDensity: fogValue,
-      visibility: computedVisibility,
-      speed: currentSpeed,
-      speedLimit: recLimit,
-      riskLevel: computedRisk,
-      obstacleActive: isObstacle,
-      obstacleDist: dist,
-      obstacleX: xOffset,
-      gps: {
-        lat: newLat,
-        lng: newLng,
-        alt: 1182
-      },
-      battery: newBattery,
-      gap: currentGap,
-      ttc: computedTtc,
-      eStop: state.eStop
-    };
+    updateUI();
   }
 
   // =========================================================================
-  // 6. EVENT LOGGING (STRICT STATE-CHANGE ONLY)
+  // 5. WEBSOCKET REAL-TIME CLIENT (WITH JWT AUTHENTICATION)
+  // =========================================================================
+  let ws = null;
+  let wsReconnectTimer = null;
+
+  function initWebSocket() {
+    clearTimeout(wsReconnectTimer);
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}?token=${encodeURIComponent(sessionToken)}`;
+
+    try {
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = function () {
+        console.log(`[WebSocket] Connected successfully as ${sessionUser} (${currentRole})`);
+        addLogEntry('INFO', `Live telemetry stream connected via WebSocket [Role: ${currentRole.toUpperCase()}].`);
+      };
+
+      ws.onmessage = function (event) {
+        try {
+          const message = JSON.parse(event.data);
+
+          if (message.type === 'TELEMETRY_UPDATE') {
+            const data = message.data;
+
+            // Merge received backend-sliced data into state
+            if (data) {
+              if (data.role) state.role = data.role;
+              if (typeof data.fogDensity === 'number') state.fogDensity = data.fogDensity;
+              if (typeof data.visibility === 'number') state.visibility = data.visibility;
+              if (typeof data.speed === 'number') state.speed = data.speed;
+              if (typeof data.speedLimit === 'number') state.speedLimit = data.speedLimit;
+              if (data.riskLevel) state.riskLevel = data.riskLevel;
+              if (data.decision) state.riskLevel = data.decision;
+              if (typeof data.eStop === 'boolean') state.eStop = data.eStop;
+              if (typeof data.gap === 'number') state.gap = data.gap;
+              if (typeof data.convoyGap === 'number') state.gap = data.convoyGap;
+              if (typeof data.ttc === 'number') state.ttc = data.ttc;
+              if (data.status) state.status = data.status;
+              if (data.hazardAlert) state.hazardAlert = data.hazardAlert;
+              if (data.gps) state.gps = data.gps;
+              if (typeof data.battery === 'number') state.battery = data.battery;
+
+              // Scan points: only populated if backend provided them (Admin/Operator)
+              if (Array.isArray(data.scanPoints)) {
+                scanPoints = data.scanPoints;
+              } else if (currentRole === 'field_worker' || currentRole === 'guest') {
+                scanPoints = []; // backend strictly redacted points!
+              }
+
+              // Check for state changes & log
+              checkAndLogStateChanges(state);
+
+              // Update visuals
+              updateUI();
+              renderLidar();
+              renderMap();
+            }
+          }
+
+          if (message.type === 'ROLE_SWITCHED') {
+            addLogEntry('INFO', `Switched simulated view to: ${message.role.toUpperCase()}`);
+            if (message.data) {
+              Object.assign(state, message.data);
+              updateUI();
+              renderLidar();
+              renderMap();
+            }
+          }
+
+          if (message.type === 'ACTION_REJECTED') {
+            addLogEntry('CRITICAL', `ACCESS DENIED: ${message.error}`);
+            alert(message.error);
+          }
+
+        } catch (e) {
+          console.warn('[WebSocket] Error processing message:', e.message);
+        }
+      };
+
+      ws.onclose = function () {
+        console.warn('[WebSocket] Connection closed. Attempting reconnect in 3s...');
+        wsReconnectTimer = setTimeout(initWebSocket, 3000);
+      };
+
+      ws.onerror = function (err) {
+        console.warn('[WebSocket Error]:', err);
+      };
+
+    } catch (e) {
+      console.warn('[WebSocket Init Error]:', e);
+      wsReconnectTimer = setTimeout(initWebSocket, 3000);
+    }
+  }
+
+  // =========================================================================
+  // 6. ACTUATION HANDLERS (RBAC PROTECTED)
+  // =========================================================================
+  function handleEstopClick() {
+    // Only Admin & Operator have actuation authority
+    if (currentRole !== 'admin' && currentRole !== 'operator') {
+      alert(`Access Forbidden: Only Admin and Operator roles can trigger Emergency Stop. Your current role is '${currentRole}'.`);
+      return;
+    }
+
+    state.eStop = !state.eStop;
+
+    // Send action over WebSocket if open
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'ESTOP' }));
+    } else {
+      // Fallback REST call with JWT Bearer
+      fetch('/api/telemetry/estop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      }).catch((err) => console.warn('[E-Stop REST Error]:', err));
+    }
+
+    updateUI();
+  }
+
+  function handleFogSliderChange(e) {
+    const val = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
+
+    // Field Worker cannot modify fog simulation
+    if (currentRole === 'field_worker') {
+      return;
+    }
+
+    state.fogDensity = val;
+
+    // Send action over WebSocket if open
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'SET_FOG', value: val }));
+    } else {
+      // Fallback REST call with JWT Bearer
+      fetch('/api/telemetry/fog', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ fogDensity: val })
+      }).catch((err) => console.warn('[Fog REST Error]:', err));
+    }
+
+    updateUI();
+  }
+
+  if (btnEstop) {
+    btnEstop.addEventListener('click', handleEstopClick);
+  }
+
+  if (fogSlider) {
+    fogSlider.addEventListener('input', handleFogSliderChange);
+    fogSlider.addEventListener('change', handleFogSliderChange);
+  }
+
+  // SIH Judge Demo: 1-Click Role Switcher listener
+  if (roleSwitchSelect) {
+    roleSwitchSelect.value = currentRole;
+    roleSwitchSelect.addEventListener('change', function (e) {
+      const newRole = e.target.value;
+      applyRoleLayout(newRole);
+
+      // Persist in session
+      try {
+        const s = JSON.parse(sessionStorage.getItem('fogbot_session') || '{}');
+        s.role = newRole;
+        sessionStorage.setItem('fogbot_session', JSON.stringify(s));
+      } catch (err) {}
+
+      // Inform backend via WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'SWITCH_ROLE_DEMO', role: newRole }));
+      } else {
+        // Fetch new slice via REST
+        fetch(`/api/telemetry/live?token=${encodeURIComponent(sessionToken)}`)
+          .then((res) => res.json())
+          .then((res) => {
+            if (res.data) {
+              Object.assign(state, res.data);
+              updateUI();
+              renderLidar();
+              renderMap();
+            }
+          });
+      }
+    });
+  }
+
+  // =========================================================================
+  // 7. EVENT LOGGING (ADMIN & OPERATOR ONLY)
   // =========================================================================
   function addLogEntry(tag, message) {
-    if (!eventLogStream) return;
+    if (!eventLogStream || currentRole === 'field_worker') return;
 
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
@@ -311,53 +497,32 @@
       <span class="log-entry__text">${escapeHtml(message)}</span>
     `;
 
-    // Prepend (newest on top)
     eventLogStream.insertBefore(entry, eventLogStream.firstChild);
-
-    // Cap at 60 entries
-    if (eventLogStream.children.length > 60) {
+    if (eventLogStream.children.length > 50) {
       eventLogStream.removeChild(eventLogStream.lastChild);
     }
   }
 
   function checkAndLogStateChanges(curr) {
-    // 1. E-STOP change
+    if (currentRole === 'field_worker') return;
+
     if (lastLoggedState.eStop !== null && lastLoggedState.eStop !== curr.eStop) {
       if (curr.eStop) {
-        addLogEntry('CRITICAL', 'EMERGENCY STOP ACTIVATED. Convoy halt broadcast to Haul Truck #04.');
+        addLogEntry('CRITICAL', 'EMERGENCY STOP ENGAGED. Convoy halt broadcast to CAT 777D #04.');
       } else {
-        addLogEntry('INFO', 'E-STOP reset by operator. Autonomous pilot escort resumed.');
+        addLogEntry('INFO', 'E-STOP reset. Autonomous pilot escorting resumed.');
       }
     }
 
-    // 2. Risk Level change
     if (lastLoggedState.riskLevel !== null && lastLoggedState.riskLevel !== curr.riskLevel) {
       const tag = curr.riskLevel === 'HIGH' ? 'CRITICAL' : (curr.riskLevel === 'MEDIUM' ? 'WARN' : 'INFO');
-      addLogEntry(tag, `Site risk transition: ${lastLoggedState.riskLevel} -> ${curr.riskLevel} (Visibility: ${curr.visibility}m).`);
+      addLogEntry(tag, `Risk state transition: ${lastLoggedState.riskLevel} -> ${curr.riskLevel} (Visibility: ${curr.visibility}m).`);
     }
 
-    // 3. Obstacle detected or cleared
-    if (lastLoggedState.obstacleActive !== null && lastLoggedState.obstacleActive !== curr.obstacleActive) {
-      if (curr.obstacleActive) {
-        addLogEntry('WARN', `LiDAR detected forward obstacle at ${curr.obstacleDist}m (Sector 3B). Adjusting safe headway.`);
-      } else {
-        addLogEntry('INFO', 'Forward road obstacle cleared. Pilot corridor open.');
-      }
-    }
-
-    // 4. Speed limit adjusted
-    if (lastLoggedState.speedLimit !== null && lastLoggedState.speedLimit !== curr.speedLimit && !curr.eStop) {
-      addLogEntry('INFO', `Speed governor updated: max recommended speed set to ${curr.speedLimit} km/h.`);
-    }
-
-    // Update last logged state snapshot
     lastLoggedState.riskLevel = curr.riskLevel;
-    lastLoggedState.obstacleActive = curr.obstacleActive;
     lastLoggedState.eStop = curr.eStop;
-    lastLoggedState.speedLimit = curr.speedLimit;
   }
 
-  // Clear log button
   if (btnClearLog) {
     btnClearLog.addEventListener('click', function () {
       if (eventLogStream) {
@@ -368,20 +533,63 @@
   }
 
   // =========================================================================
-  // 7. RENDER FUNCTIONS
+  // 8. RENDER FUNCTIONS
   // =========================================================================
   function updateUI() {
-    // Top Bar Fog
+    // 1. Top Bar Fog Badge & Slider sync
     if (fogValBadge) fogValBadge.textContent = `${state.fogDensity}%`;
+    if (fogSlider && document.activeElement !== fogSlider) {
+      fogSlider.value = state.fogDensity;
+    }
 
-    // KPI Strip
+    // 2. E-Stop Button Visual State
+    if (btnEstop && (currentRole === 'admin' || currentRole === 'operator')) {
+      if (state.eStop) {
+        btnEstop.classList.add('is-active');
+        if (estopText) estopText.textContent = 'RESET E-STOP';
+      } else {
+        btnEstop.classList.remove('is-active');
+        if (estopText) estopText.textContent = 'EMERGENCY STOP';
+      }
+    }
+
+    // 3. FIELD WORKER IN-CAB HUD RENDERING
+    if (currentRole === 'field_worker') {
+      if (cabDecisionBanner) {
+        if (state.eStop || state.riskLevel === 'HIGH') {
+          cabDecisionBanner.className = 'cab-hud-banner is-danger';
+          if (cabDecisionIcon) cabDecisionIcon.textContent = '✕';
+          if (cabDecisionTitle) cabDecisionTitle.textContent = state.eStop ? 'EMERGENCY STOP // HALT TRUCK' : 'CRITICAL RISK // BRAKE READY';
+        } else if (state.riskLevel === 'MEDIUM') {
+          cabDecisionBanner.className = 'cab-hud-banner is-caution';
+          if (cabDecisionIcon) cabDecisionIcon.textContent = '▲';
+          if (cabDecisionTitle) cabDecisionTitle.textContent = 'CAUTION // REDUCE SPEED';
+        } else {
+          cabDecisionBanner.className = 'cab-hud-banner is-safe';
+          if (cabDecisionIcon) cabDecisionIcon.textContent = '✓';
+          if (cabDecisionTitle) cabDecisionTitle.textContent = 'SAFE TO PROCEED';
+        }
+      }
+
+      if (cabHazardAlert) cabHazardAlert.textContent = state.hazardAlert || (state.obstacleActive ? `OBSTACLE DETECTED AT ${state.obstacleDist}m` : 'PILOT CORRIDOR CLEAR');
+      if (cabSpeedLimit) cabSpeedLimit.textContent = state.speedLimit;
+      if (cabCurrentSpeed) cabCurrentSpeed.textContent = state.speed.toFixed(1);
+      if (cabConvoyGap) cabConvoyGap.textContent = state.gap.toFixed(1);
+      if (cabTtc) cabTtc.textContent = `${state.ttc}s`;
+      if (cabRoverStatus) {
+        cabRoverStatus.textContent = state.eStop ? 'STOPPED' : (state.riskLevel === 'HIGH' ? 'HAZARD HOLD' : 'ESCORTING');
+        cabRoverStatus.style.color = state.eStop ? 'var(--danger)' : (state.riskLevel === 'HIGH' ? 'var(--danger)' : (state.riskLevel === 'MEDIUM' ? 'var(--amber)' : 'var(--green)'));
+      }
+    }
+
+    // 4. KPI STRIP
     if (kpiVisibility) kpiVisibility.textContent = state.visibility;
     if (kpiRiskBadge) {
       kpiRiskBadge.textContent = state.riskLevel;
       kpiRiskBadge.className = `risk-badge is-${state.riskLevel.toLowerCase()}`;
     }
 
-    // AI Risk Engine Card
+    // 5. AI RISK ENGINE (Admin & Operator & Guest)
     if (inputSpeed) inputSpeed.textContent = `${state.speed} km/h`;
     if (inputFog) inputFog.textContent = `${state.fogDensity}%`;
     if (inputCamera) {
@@ -398,7 +606,6 @@
       }
     }
 
-    // Risk Meter Bar
     if (riskBarFill) {
       let percent = 25;
       if (state.riskLevel === 'MEDIUM') percent = 60;
@@ -406,18 +613,15 @@
       riskBarFill.style.width = `${percent}%`;
     }
 
-    // Risk Engine Badge
     if (riskEngineBadge) {
       riskEngineBadge.textContent = state.riskLevel;
       riskEngineBadge.className = `risk-badge is-${state.riskLevel.toLowerCase()}`;
     }
 
-    // Recommended Speed
     if (recSpeedVal) {
       recSpeedVal.innerHTML = `${state.speedLimit} <span>km/h MAX</span>`;
     }
 
-    // Safety Advisory
     if (safetyAdvisoryText) {
       if (state.eStop) {
         safetyAdvisoryText.textContent = 'CRITICAL: Autonomous Escort Suspended via Emergency Stop. All drive motors locked.';
@@ -430,30 +634,25 @@
       }
     }
 
-    // Telemetry Card
+    // 6. VEHICLE TELEMETRY CARD
     if (telemGps) telemGps.textContent = `${state.gps.lat.toFixed(4)}° N, ${state.gps.lng.toFixed(4)}° E`;
     if (telemAlt) telemAlt.textContent = `${state.gps.alt} m ASL`;
     if (telemSpeed) telemSpeed.textContent = `${state.speed} km/h (Limit: ${state.speedLimit})`;
     if (telemBatteryVal) telemBatteryVal.textContent = `${state.battery.toFixed(1)}% (48.4V)`;
     if (telemBatteryFill) telemBatteryFill.style.width = `${state.battery}%`;
     if (telemStatus) {
-      if (state.eStop) {
-        telemStatus.textContent = 'EMERGENCY STOPPED';
-        telemStatus.style.color = 'var(--danger)';
-      } else {
-        telemStatus.textContent = 'AUTONOMOUS ESCORTING';
-        telemStatus.style.color = 'var(--green)';
-      }
+      telemStatus.textContent = state.status;
+      telemStatus.style.color = state.eStop ? 'var(--danger)' : (state.riskLevel === 'HIGH' ? 'var(--danger)' : 'var(--green)');
     }
 
-    // Map Readouts
+    // 7. CONVOY MAP READOUTS
     if (mapGapReadout) mapGapReadout.textContent = `${state.gap} m`;
     if (mapTtcReadout) {
       mapTtcReadout.textContent = `${state.ttc} s`;
       mapTtcReadout.style.color = state.ttc < 3.0 ? 'var(--danger)' : 'var(--cyan)';
     }
 
-    // Mini HUD
+    // 8. MINI HUD WIDGET
     if (hudVisibility) hudVisibility.textContent = `${state.visibility}m`;
     if (hudSpeed) hudSpeed.textContent = `${state.speed} km/h`;
     if (hudObstacle) {
@@ -471,24 +670,22 @@
   }
 
   // =========================================================================
-  // 8. LIDAR CANVAS SCATTER PLOT RENDERER
+  // 9. LIDAR CANVAS RADAR SCATTER (OMITTED FOR FIELD WORKER)
   // =========================================================================
   function renderLidar() {
-    if (!lidarCanvas || !lidarCtx) return;
+    if (!lidarCanvas || !lidarCtx || currentRole === 'field_worker') return;
 
     const width = lidarCanvas.width;
     const height = lidarCanvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Scale: 20 meters mapped to ~85% of half-canvas
     const maxMeters = 20;
     const meterScale = (Math.min(centerX, centerY) * 0.85) / maxMeters;
 
-    // Clear canvas
     lidarCtx.clearRect(0, 0, width, height);
 
-    // 1. Draw Radar Grid & Range Rings
+    // 1. Radar Grid & Range Rings
     const rings = [5, 10, 15, 20];
     lidarCtx.lineWidth = 1;
     rings.forEach((r) => {
@@ -498,7 +695,6 @@
       lidarCtx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
       lidarCtx.stroke();
 
-      // Range labels
       lidarCtx.fillStyle = 'rgba(148, 163, 184, 0.5)';
       lidarCtx.font = '10px "JetBrains Mono", monospace';
       lidarCtx.fillText(`${r}m`, centerX + 4, centerY - radiusPx + 11);
@@ -513,7 +709,7 @@
     lidarCtx.lineTo(centerX + maxMeters * meterScale + 10, centerY);
     lidarCtx.stroke();
 
-    // North (Forward) indicator
+    // Forward direction indicator
     lidarCtx.fillStyle = 'rgba(241, 104, 42, 0.8)';
     lidarCtx.font = 'bold 11px "JetBrains Mono", monospace';
     lidarCtx.fillText('▲ FORWARD (HAUL ROAD)', centerX - 62, centerY - (maxMeters * meterScale) - 8);
@@ -523,23 +719,15 @@
 
     for (let i = 0; i < scanPoints.length; i++) {
       const pt = scanPoints[i];
-      // Point coordinates in meters (0,0 is rover)
-      // Positive y is forward (drawn upward: centerY - pt.y * scale)
       const px = centerX + (pt.x * meterScale);
       const py = centerY - (pt.y * meterScale);
-
       const dist = Math.sqrt(pt.x * pt.x + pt.y * pt.y);
 
-      // Points beyond visibility range fade out or do not render
-      if (dist > visCutoff) {
-        continue; // invisible due to dense fog
-      }
+      if (dist > visCutoff) continue;
 
-      // Proximity fade: points closer to visibility cutoff fade smoothly
       const visibilityRatio = dist / visCutoff;
       const alpha = Math.max(0.12, 1 - Math.pow(visibilityRatio, 2));
 
-      // Color coding: cyan with alpha
       lidarCtx.fillStyle = `rgba(56, 189, 248, ${alpha.toFixed(2)})`;
       lidarCtx.fillRect(px - 1, py - 1, 2.2, 2.2);
     }
@@ -549,7 +737,6 @@
       const obsPx = centerX + (state.obstacleX * meterScale);
       const obsPy = centerY - (state.obstacleDist * meterScale);
 
-      // Warning circle around obstacle
       const pulseTime = Date.now() / 200;
       const pulseRadius = 10 + Math.sin(pulseTime) * 3;
 
@@ -559,23 +746,20 @@
       lidarCtx.arc(obsPx, obsPy, pulseRadius, 0, Math.PI * 2);
       lidarCtx.stroke();
 
-      // Filled warning marker
       lidarCtx.fillStyle = '#EF4444';
       lidarCtx.beginPath();
       lidarCtx.arc(obsPx, obsPy, 5, 0, Math.PI * 2);
       lidarCtx.fill();
 
-      // Obstacle Label
       lidarCtx.fillStyle = '#F87171';
       lidarCtx.font = 'bold 11px "JetBrains Mono", monospace';
       lidarCtx.fillText(`▲ OBSTACLE: ${state.obstacleDist}m`, obsPx + 14, obsPy + 4);
     }
 
-    // 4. Center Rover Marker at (0,0)
+    // 4. Center Rover Chevron Marker
     lidarCtx.save();
     lidarCtx.translate(centerX, centerY);
 
-    // Forward light cone
     const grad = lidarCtx.createRadialGradient(0, 0, 2, 0, -40, 60);
     grad.addColorStop(0, 'rgba(241, 104, 42, 0.35)');
     grad.addColorStop(1, 'rgba(241, 104, 42, 0)');
@@ -586,7 +770,6 @@
     lidarCtx.closePath();
     lidarCtx.fill();
 
-    // Rover body (chevron)
     lidarCtx.fillStyle = '#F1682A';
     lidarCtx.beginPath();
     lidarCtx.moveTo(0, -9);
@@ -604,7 +787,7 @@
   }
 
   // =========================================================================
-  // 9. CONVOY MAP VIEW CANVAS RENDERER
+  // 10. CONVOY MAP CANVAS RENDERER
   // =========================================================================
   function renderMap() {
     if (!mapCanvas || !mapCtx) return;
@@ -614,15 +797,13 @@
 
     mapCtx.clearRect(0, 0, w, h);
 
-    // Draw Mine Haul Road Corridor
     const roadTopY = h * 0.3;
     const roadBottomY = h * 0.7;
 
-    // Road surface
+    // Road surface & borders
     mapCtx.fillStyle = 'rgba(15, 23, 42, 0.9)';
     mapCtx.fillRect(0, roadTopY, w, roadBottomY - roadTopY);
 
-    // Road borders
     mapCtx.strokeStyle = 'rgba(248, 250, 252, 0.15)';
     mapCtx.lineWidth = 2;
     mapCtx.beginPath();
@@ -632,7 +813,7 @@
     mapCtx.lineTo(w, roadBottomY);
     mapCtx.stroke();
 
-    // Dashed center road lane
+    // Center divider
     mapCtx.strokeStyle = 'rgba(248, 250, 252, 0.08)';
     mapCtx.setLineDash([8, 8]);
     mapCtx.beginPath();
@@ -641,17 +822,16 @@
     mapCtx.stroke();
     mapCtx.setLineDash([]);
 
-    // Vehicles: Rover leads at right, Haul Truck follows at left
+    // Vehicle positions
     const roverX = w * 0.72;
     const roverY = h * 0.5;
 
-    // Truck position based on convoy gap
     const gapPx = Math.max(100, Math.min(240, state.gap * 3.8));
     const truckX = roverX - gapPx;
     const truckY = h * 0.5;
 
-    // Convoy Tether (dashed connecting line)
-    mapCtx.strokeStyle = state.ttc < 3.0 ? 'rgba(239, 68, 68, 0.8)' : 'rgba(56, 189, 248, 0.6)';
+    // Convoy Tether
+    mapCtx.strokeStyle = state.ttc < 3.0 || state.eStop ? 'rgba(239, 68, 68, 0.85)' : 'rgba(56, 189, 248, 0.6)';
     mapCtx.lineWidth = 2;
     mapCtx.setLineDash([5, 5]);
     mapCtx.beginPath();
@@ -660,14 +840,14 @@
     mapCtx.stroke();
     mapCtx.setLineDash([]);
 
-    // Convoy Gap Label over line
+    // Gap Label
     const midX = (truckX + roverX) / 2;
     mapCtx.fillStyle = '#CBD5E1';
     mapCtx.font = '10px "JetBrains Mono", monospace';
     mapCtx.textAlign = 'center';
     mapCtx.fillText(`${state.gap}m // TTC ${state.ttc}s`, midX, roverY - 14);
 
-    // Draw Trailing Haul Truck (CAT 777D)
+    // Trailing Truck (CAT 777D)
     mapCtx.fillStyle = '#1E293B';
     mapCtx.strokeStyle = '#38BDF8';
     mapCtx.lineWidth = 2;
@@ -678,7 +858,7 @@
     mapCtx.font = 'bold 9px "JetBrains Mono", monospace';
     mapCtx.fillText('CAT 777D', truckX, truckY + 3);
 
-    // Draw Leading Pilot Rover
+    // Leading Rover
     mapCtx.fillStyle = '#F1682A';
     mapCtx.strokeStyle = '#FFFFFF';
     mapCtx.lineWidth = 1.5;
@@ -687,7 +867,7 @@
     mapCtx.fill();
     mapCtx.stroke();
 
-    // Directional beam ahead of rover
+    // Directional beam
     mapCtx.fillStyle = 'rgba(241, 104, 42, 0.2)';
     mapCtx.beginPath();
     mapCtx.moveTo(roverX, roverY);
@@ -703,88 +883,6 @@
     mapCtx.textAlign = 'start';
   }
 
-  // =========================================================================
-  // 10. TICK LOOP (INTERVAL ~1s)
-  // =========================================================================
-  function tick() {
-    const currentFogValue = parseInt(fogSlider ? fogSlider.value : 35, 10);
-    
-    // Acquire new telemetry from simulated source
-    const newTelemetry = getTelemetry(currentFogValue);
-
-    // Update state object
-    Object.assign(state, newTelemetry);
-
-    // Check for state changes & record to event log
-    checkAndLogStateChanges(state);
-
-    // Update all visual components
-    updateUI();
-    renderLidar();
-    renderMap();
-  }
-
-  // =========================================================================
-  // 11. INTERACTION LISTENERS (FOG SLIDER, E-STOP) & TELEMETRY SYNC
-  // =========================================================================
-  const telemetryChannel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('fogbot_telemetry') : null;
-
-  function broadcastFogUpdate(fogVal) {
-    if (telemetryChannel) {
-      try {
-        telemetryChannel.postMessage({ type: 'FOG_UPDATE', fogDensity: fogVal, visibilityIndex: 100 - fogVal });
-      } catch (e) {}
-    }
-  }
-
-  let syncFogTimeout = null;
-  function syncFogToServer(fogVal) {
-    clearTimeout(syncFogTimeout);
-    syncFogTimeout = setTimeout(() => {
-      fetch('/api/telemetry/fog', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fogDensity: fogVal })
-      }).catch(() => {});
-    }, 150);
-  }
-
-  function handleFogSliderChange(e) {
-    const val = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
-    state.fogDensity = val;
-    try {
-      localStorage.setItem('fogbot_fog_density', val);
-    } catch (err) {}
-    broadcastFogUpdate(val);
-    syncFogToServer(val);
-    tick();
-  }
-
-  if (fogSlider) {
-    fogSlider.addEventListener('input', handleFogSliderChange);
-    fogSlider.addEventListener('change', handleFogSliderChange);
-  }
-
-  if (btnEstop) {
-    btnEstop.addEventListener('click', function () {
-      state.eStop = !state.eStop;
-
-      if (state.eStop) {
-        btnEstop.classList.add('is-active');
-        if (estopText) estopText.textContent = 'RESET E-STOP';
-        state.speed = 0;
-        state.speedLimit = 0;
-        state.riskLevel = 'HIGH';
-      } else {
-        btnEstop.classList.remove('is-active');
-        if (estopText) estopText.textContent = 'EMERGENCY STOP';
-      }
-
-      tick();
-    });
-  }
-
-  // Helper string escape
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -792,45 +890,32 @@
   }
 
   // =========================================================================
-  // 12. INITIALIZATION & TELEMETRY RESTORATION
+  // 11. INITIALIZATION
   // =========================================================================
-  // Restore persisted fog density from localStorage or server
-  try {
-    const cachedFog = localStorage.getItem('fogbot_fog_density');
-    if (cachedFog !== null && !isNaN(parseInt(cachedFog, 10))) {
-      state.fogDensity = Math.max(0, Math.min(100, parseInt(cachedFog, 10)));
-    }
-  } catch (e) {}
+  // 1. Initial UI layout based on session role
+  applyRoleLayout(currentRole);
 
-  if (fogSlider) {
-    fogSlider.value = state.fogDensity;
+  // 2. Fetch real initial LiDAR scan points if permitted (Admin/Operator)
+  if (currentRole === 'admin' || currentRole === 'operator') {
+    fetch('/api/telemetry/scan-points', {
+      headers: { 'Authorization': `Bearer ${sessionToken}` }
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.scanPoints)) {
+          scanPoints = data.scanPoints;
+          renderLidar();
+        }
+      })
+      .catch(() => {});
   }
 
-  // Fetch from server in case server has newer/external value
-  fetch('/api/telemetry/fog')
-    .then(res => res.ok ? res.json() : null)
-    .then(data => {
-      if (data && typeof data.fogDensity === 'number') {
-        state.fogDensity = data.fogDensity;
-        if (fogSlider) fogSlider.value = state.fogDensity;
-        try {
-          localStorage.setItem('fogbot_fog_density', state.fogDensity);
-        } catch (e) {}
-        tick();
-      }
-    })
-    .catch(() => {});
+  // 3. Connect real-time WebSocket
+  initWebSocket();
 
-  // Boot event log entries
-  addLogEntry('INFO', 'FogBot Command Center initialized. Active link: Rover-1.');
-  addLogEntry('INFO', 'Connected to Haul Truck CAT 777D #04 (Bailadila Mine Sector 3B).');
-  addLogEntry('INFO', 'Atmospheric scatter model & telemetry daemon online.');
-
-  // Load LiDAR points and kick off loop
-  loadLidarPoints();
-  tick();
-
-  // Run periodic tick (~1s)
-  setInterval(tick, 1000);
+  // 4. Initial paint
+  updateUI();
+  renderLidar();
+  renderMap();
 
 })();
