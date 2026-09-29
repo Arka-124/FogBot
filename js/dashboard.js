@@ -327,6 +327,24 @@
               if (data.hazardAlert) state.hazardAlert = data.hazardAlert;
               if (data.gps) state.gps = data.gps;
               if (typeof data.battery === 'number') state.battery = data.battery;
+              if (typeof data.heading === 'number') state.heading = data.heading;
+              if (typeof data.roadPitch === 'number') state.roadPitch = data.roadPitch;
+
+              // Live FLIR Camera Stream
+              const frameSrc = data.cameraFrame || data.cameraFeed;
+              if (frameSrc) {
+                state.cameraFrame = frameSrc;
+                state.cameraFeed = frameSrc;
+                const camImg = document.getElementById('cameraFeedImg');
+                const placeholder = document.getElementById('cameraPlaceholderContent');
+                if (camImg) {
+                  camImg.src = frameSrc;
+                  camImg.style.display = 'block';
+                }
+                if (placeholder) {
+                  placeholder.style.display = 'none';
+                }
+              }
 
               // Scan points: only populated if backend provided them (Admin/Operator)
               if (Array.isArray(data.scanPoints)) {
@@ -717,6 +735,14 @@
     if (hudObstacle) {
       hudObstacle.textContent = state.obstacleActive ? `${state.obstacleDist}m` : 'Clear';
       hudObstacle.style.color = state.obstacleActive ? 'var(--danger)' : 'var(--cyan)';
+    }
+
+    // 9. LIDAR ORIENTATION BADGE
+    if (typeof state.heading === 'number') {
+      const orientEl = document.getElementById('lidarOrientationText');
+      if (orientEl) {
+        orientEl.innerHTML = `${Math.round(state.heading)}&deg; HDG`;
+      }
     }
     if (hudRisk) {
       hudRisk.textContent = state.riskLevel;

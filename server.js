@@ -273,6 +273,8 @@ function updateMasterTelemetry() {
 // BACKEND ROLE-BASED TELEMETRY SLICING (DATA GATING)
 // =========================================================================
 function sliceTelemetryForRole(master, role) {
+  const activeScanPoints = master.scanPoints || (scanPointsCache ? scanPointsCache.slice(0, 1500) : []);
+  const camStream = master.cameraFrame || master.cameraFeed || null;
   switch (role) {
     case 'admin':
       // 100% Unredacted: Full AI internals, scan points, formulas, diagnostics
@@ -280,7 +282,9 @@ function sliceTelemetryForRole(master, role) {
         role: 'admin',
         accessLevel: 'UNRESTRICTED_ADMIN',
         ...master,
-        scanPoints: scanPointsCache ? scanPointsCache.slice(0, 1500) : []
+        scanPoints: activeScanPoints,
+        cameraFrame: camStream,
+        cameraFeed: camStream
       };
 
     case 'operator': {
@@ -291,7 +295,9 @@ function sliceTelemetryForRole(master, role) {
         role: 'operator',
         accessLevel: 'OPERATIONAL_DISPATCH',
         ...opData,
-        scanPoints: scanPointsCache ? scanPointsCache.slice(0, 1500) : []
+        scanPoints: activeScanPoints,
+        cameraFrame: camStream,
+        cameraFeed: camStream
       };
     }
 
@@ -305,11 +311,12 @@ function sliceTelemetryForRole(master, role) {
         decision: master.riskLevel, // 'SAFE' | 'CAUTION' | 'HIGH' (Flashing E-STOP)
         recommendedSpeed: master.speedLimit,
         currentSpeed: master.speed,
+        gap: master.gap,
         convoyGap: master.gap,
         ttc: master.ttc,
         hazardAlert: master.obstacleActive
           ? `HAZARD: Forward Obstacle at ${master.obstacleDist}m (Sector 3B)`
-          : 'PILOT CORRIDOR CLEAR',
+          : (master.eStop ? 'EMERGENCY BRAKE ENGAGED' : 'PILOT CORRIDOR CLEAR'),
         visibility: master.visibility,
         fogDensity: master.fogDensity,
         status: master.status,
@@ -317,6 +324,10 @@ function sliceTelemetryForRole(master, role) {
         zone: master.targetSite,
         leadUnit: master.roverId,
         trailingUnit: 'CAT 777D #04',
+        heading: master.heading,
+        roadPitch: master.roadPitch,
+        cameraFrame: camStream,
+        cameraFeed: camStream,
         updatedAt: master.updatedAt
       };
 
@@ -331,6 +342,7 @@ function sliceTelemetryForRole(master, role) {
         riskLevel: master.riskLevel,
         speedLimit: master.speedLimit,
         speed: master.speed,
+        gap: master.gap,
         convoyGap: master.gap,
         ttc: master.ttc,
         status: master.status,
@@ -339,6 +351,11 @@ function sliceTelemetryForRole(master, role) {
         activeRovers: 1,
         connectedTrucks: 1,
         zone: master.targetSite,
+        heading: master.heading,
+        roadPitch: master.roadPitch,
+        cameraConfidence: master.cameraConfidence,
+        cameraFrame: camStream,
+        cameraFeed: camStream,
         updatedAt: master.updatedAt
       };
 
@@ -348,6 +365,8 @@ function sliceTelemetryForRole(master, role) {
         accessLevel: 'MINIMAL_PUBLIC',
         visibility: master.visibility,
         fogDensity: master.fogDensity,
+        cameraFrame: camStream,
+        cameraFeed: camStream,
         updatedAt: master.updatedAt
       };
   }
@@ -397,17 +416,31 @@ function requireRole(allowedRoles = []) {
 }
 
 // =========================================================================
-// WEBSOCKET TELEMETRY BROADCAST ENGINE
+// WEBSOCKET TELEMETRY BROADCAST ENGINE & LIVE SIMULATION INGESTION
 // =========================================================================
+const SIM_BRIDGE_SECRET = process.env.SIM_BRIDGE_SECRET || 'fogbot_secure_sim_token_2026';
+let isLiveSimulationActive = false;
+let lastSimHeartbeat = 0;
+
 wss.on('connection', (ws, req) => {
-  // Extract token from query string (e.g., ws://host:port?token=...)
+  // Extract token or role from query string (e.g., ws://host:port?token=... or ?role=sim_bridge)
   let clientRole = 'guest';
   let clientUser = 'anonymous';
 
   try {
     const parsedUrl = new URL(req.url, 'http://localhost');
     const token = parsedUrl.searchParams.get('token');
-    if (token) {
+    const queryRole = parsedUrl.searchParams.get('role');
+    const querySecret = parsedUrl.searchParams.get('secret');
+
+    if (queryRole === 'sim_bridge' || querySecret === SIM_BRIDGE_SECRET) {
+      clientRole = 'sim_bridge';
+      clientUser = 'ROS2_Gazebo_SimBridge';
+      ws.isSimBridge = true;
+      isLiveSimulationActive = true;
+      lastSimHeartbeat = Date.now();
+      console.log('[BRIDGE] Local ROS 2 Gazebo simulation bridge authenticated via query.');
+    } else if (token) {
       const decoded = jwt.verify(token, JWT_SECRET);
       clientRole = decoded.role || 'guest';
       clientUser = decoded.userId || 'user';
@@ -421,15 +454,88 @@ wss.on('connection', (ws, req) => {
   ws.clientUser = clientUser;
   console.log(`[WebSocket] Client connected: ${clientUser} (Role: ${clientRole})`);
 
-  // Send immediate initial role-sliced telemetry
-  const initialPayload = sliceTelemetryForRole(masterTelemetry, clientRole);
-  ws.send(JSON.stringify({ type: 'TELEMETRY_UPDATE', data: initialPayload }));
+  // Send immediate initial role-sliced telemetry (for browsers)
+  if (!ws.isSimBridge) {
+    const initialPayload = sliceTelemetryForRole(masterTelemetry, clientRole);
+    ws.send(JSON.stringify({ type: 'TELEMETRY_UPDATE', data: initialPayload }));
+  }
 
-  // Handle client-initiated actuation (E-STOP or Fog change)
+  // Handle client-initiated actuation (E-STOP or Fog change) or simulation telemetry
   ws.on('message', (message) => {
     try {
       const parsed = JSON.parse(message);
 
+      // 1. SIMULATION BRIDGE AUTHENTICATION REGISTRATION
+      if (parsed.type === 'SIM_BRIDGE_REGISTER') {
+        if (parsed.secret === SIM_BRIDGE_SECRET) {
+          ws.isSimBridge = true;
+          ws.clientRole = 'sim_bridge';
+          ws.clientUser = 'ROS2_Gazebo_SimBridge';
+          isLiveSimulationActive = true;
+          lastSimHeartbeat = Date.now();
+          console.log('[BRIDGE] Local ROS 2 Gazebo simulation bridge authenticated successfully.');
+          ws.send(JSON.stringify({ type: 'SIM_BRIDGE_ACK', status: 'AUTHENTICATED' }));
+        } else {
+          console.warn('[BRIDGE] Unauthorized bridge secret attempted.');
+          ws.close(4001, 'Unauthorized bridge secret');
+        }
+        return;
+      }
+
+      // 2. INGEST LIVE ROS 2 / GAZEBO SIMULATION TELEMETRY
+      if (parsed.type === 'SIM_TELEMETRY' && ws.isSimBridge) {
+        lastSimHeartbeat = Date.now();
+        isLiveSimulationActive = true;
+        const p = parsed.payload || parsed.data;
+
+        if (p) {
+          Object.assign(masterTelemetry, p);
+
+          // Harmonize field aliases across UI & role slices
+          if (typeof p.roverSpeed === 'number') masterTelemetry.speed = Math.round(p.roverSpeed * 10) / 10;
+          if (typeof p.safeSpeed === 'number') masterTelemetry.speedLimit = Math.round(p.safeSpeed * 10) / 10;
+          if (typeof p.convoyGap === 'number') masterTelemetry.gap = Math.round(p.convoyGap * 10) / 10;
+          if (typeof p.estop === 'boolean') masterTelemetry.eStop = p.estop;
+          if (p.cameraFeed && !p.cameraFrame) masterTelemetry.cameraFrame = p.cameraFeed;
+          if (p.cameraFrame && !p.cameraFeed) masterTelemetry.cameraFeed = p.cameraFrame;
+
+          if (p.riskState) {
+            if (p.riskState === 'SAFE') masterTelemetry.riskLevel = 'LOW';
+            else if (p.riskState === 'CAUTION') masterTelemetry.riskLevel = 'MEDIUM';
+            else if (p.riskState === 'HIGH') masterTelemetry.riskLevel = 'HIGH';
+            else masterTelemetry.riskLevel = p.riskState;
+          }
+
+          if (masterTelemetry.eStop) {
+            masterTelemetry.status = 'EMERGENCY STOPPED';
+          } else if (masterTelemetry.riskLevel === 'HIGH') {
+            masterTelemetry.status = 'CRITICAL HAZARD SLOWDOWN';
+          } else if (masterTelemetry.riskLevel === 'MEDIUM') {
+            masterTelemetry.status = 'CAUTIONARY ESCORT';
+          } else {
+            masterTelemetry.status = 'AUTONOMOUS ESCORTING';
+          }
+
+          masterTelemetry.updatedAt = new Date().toISOString();
+        }
+
+        // Broadcast updated state to all connected browser dashboards immediately
+        broadcastTelemetry();
+        return;
+      }
+
+      // Check role registration handshake
+      if (parsed.role === 'sim_bridge' || parsed.source === 'sim_bridge') {
+        ws.isSimBridge = true;
+        ws.clientRole = 'sim_bridge';
+        ws.clientUser = 'ROS2_Gazebo_SimBridge';
+        isLiveSimulationActive = true;
+        lastSimHeartbeat = Date.now();
+        console.log('[WebSocket] Live ROS 2 Simulation Bridge registered.');
+        return;
+      }
+
+      // 2. BROWSER CLIENT-INITIATED ACTIONS (ESTOP / FOG / ROLE SWITCH)
       // Verify permissions before allowing mutations
       if (parsed.action === 'ESTOP') {
         if (ws.clientRole !== 'admin' && ws.clientRole !== 'operator') {
@@ -440,9 +546,16 @@ wss.on('connection', (ws, req) => {
         }
 
         masterTelemetry.eStop = !masterTelemetry.eStop;
-        updateMasterTelemetry();
+        if (!isLiveSimulationActive) updateMasterTelemetry();
         broadcastTelemetry();
         console.log(`[E-STOP] State toggled to ${masterTelemetry.eStop} by ${ws.clientUser} (${ws.clientRole})`);
+
+        // Forward action downstream to live simulation bridge if active
+        wss.clients.forEach((client) => {
+          if (client.isSimBridge && client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ action: 'ESTOP', state: masterTelemetry.eStop }));
+          }
+        });
       }
 
       if (parsed.action === 'SET_FOG') {
@@ -456,8 +569,15 @@ wss.on('connection', (ws, req) => {
         const fogVal = parseInt(parsed.value, 10);
         if (!isNaN(fogVal) && fogVal >= 0 && fogVal <= 100) {
           masterTelemetry.fogDensity = fogVal;
-          updateMasterTelemetry();
+          if (!isLiveSimulationActive) updateMasterTelemetry();
           broadcastTelemetry();
+
+          // Forward action downstream to live simulation bridge if active (density 0.0 - 1.0)
+          wss.clients.forEach((client) => {
+            if (client.isSimBridge && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ action: 'SET_FOG', density: fogVal / 100.0, value: fogVal }));
+            }
+          });
         }
       }
 
@@ -507,24 +627,38 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
-    console.log(`[WebSocket] Client disconnected: ${clientUser} (${clientRole})`);
+    if (ws.isSimBridge) {
+      console.log('[WebSocket] Live ROS 2 Simulation Bridge disconnected. Resuming fallback generator.');
+      isLiveSimulationActive = false;
+    } else {
+      console.log(`[WebSocket] Client disconnected: ${clientUser} (${clientRole})`);
+    }
   });
 });
 
 // Broadcast role-differentiated telemetry slice to all connected clients
 function broadcastTelemetry() {
   wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    // Only send browser updates to clients that are not the sim_bridge itself
+    if (client.readyState === WebSocket.OPEN && !client.isSimBridge && client.clientRole !== 'sim_bridge') {
       const slice = sliceTelemetryForRole(masterTelemetry, client.clientRole || 'guest');
       client.send(JSON.stringify({ type: 'TELEMETRY_UPDATE', data: slice }));
     }
   });
 }
 
-// Master tick interval: updates simulation and broadcasts every 1 second
+// Master tick interval: updates simulation and broadcasts every 1 second (when no live bridge is streaming)
 setInterval(() => {
-  updateMasterTelemetry();
-  broadcastTelemetry();
+  // Check if live simulation timed out (>5 seconds since last heartbeat)
+  if (isLiveSimulationActive && (Date.now() - lastSimHeartbeat > 5000)) {
+    console.warn('[BRIDGE] Simulation feed timed out. Reverting to internal mock loop.');
+    isLiveSimulationActive = false;
+  }
+
+  if (!isLiveSimulationActive) {
+    updateMasterTelemetry();
+    broadcastTelemetry();
+  }
 }, 1000);
 
 // =========================================================================
