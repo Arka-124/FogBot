@@ -363,6 +363,24 @@
             }
           }
 
+          if (message.type === 'CAMERA_UPDATE' || message.type === 'SIM_CAMERA_FRAME') {
+            const frameSrc = message.cameraFrame || message.cameraFeed || (message.data && (message.data.cameraFrame || message.data.cameraFeed));
+            if (frameSrc) {
+              state.cameraFrame = frameSrc;
+              state.cameraFeed = frameSrc;
+              const camImg = document.getElementById('cameraFeedImg');
+              const placeholder = document.getElementById('cameraPlaceholderContent');
+              if (camImg) {
+                camImg.src = frameSrc;
+                camImg.style.display = 'block';
+              }
+              if (placeholder) {
+                placeholder.style.display = 'none';
+              }
+            }
+            return;
+          }
+
           if (message.type === 'ROLE_SWITCHED') {
             addLogEntry('INFO', `Switched simulated view to: ${message.role.toUpperCase()}`);
             if (message.data) {

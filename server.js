@@ -272,32 +272,32 @@ function updateMasterTelemetry() {
 // =========================================================================
 // BACKEND ROLE-BASED TELEMETRY SLICING (DATA GATING)
 // =========================================================================
-function sliceTelemetryForRole(master, role) {
+function sliceTelemetryForRole(master, role, includeCamera = true) {
   const activeScanPoints = master.scanPoints || (scanPointsCache ? scanPointsCache.slice(0, 1500) : []);
-  const camStream = master.cameraFrame || master.cameraFeed || null;
+  const camStream = includeCamera ? (master.cameraFrame || master.cameraFeed || null) : undefined;
   switch (role) {
-    case 'admin':
+    case 'admin': {
       // 100% Unredacted: Full AI internals, scan points, formulas, diagnostics
+      const { cameraFrame: _cf1, cameraFeed: _cf2, ...adminBase } = master;
       return {
         role: 'admin',
         accessLevel: 'UNRESTRICTED_ADMIN',
-        ...master,
+        ...(includeCamera ? master : adminBase),
         scanPoints: activeScanPoints,
-        cameraFrame: camStream,
-        cameraFeed: camStream
+        ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {})
       };
+    }
 
     case 'operator': {
       // Operational Diagnostic Slice: LiDAR radar scan, telemetry, convoy map
       // Omit deep algorithmic debug formulas & internal calibration
-      const { aiRawMath, ...opData } = master;
+      const { aiRawMath, cameraFrame: _cf1, cameraFeed: _cf2, ...opData } = master;
       return {
         role: 'operator',
         accessLevel: 'OPERATIONAL_DISPATCH',
         ...opData,
         scanPoints: activeScanPoints,
-        cameraFrame: camStream,
-        cameraFeed: camStream
+        ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {})
       };
     }
 
@@ -326,8 +326,7 @@ function sliceTelemetryForRole(master, role) {
         trailingUnit: 'CAT 777D #04',
         heading: master.heading,
         roadPitch: master.roadPitch,
-        cameraFrame: camStream,
-        cameraFeed: camStream,
+        ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {}),
         updatedAt: master.updatedAt
       };
 
@@ -354,8 +353,7 @@ function sliceTelemetryForRole(master, role) {
         heading: master.heading,
         roadPitch: master.roadPitch,
         cameraConfidence: master.cameraConfidence,
-        cameraFrame: camStream,
-        cameraFeed: camStream,
+        ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {}),
         updatedAt: master.updatedAt
       };
 
@@ -365,8 +363,7 @@ function sliceTelemetryForRole(master, role) {
         accessLevel: 'MINIMAL_PUBLIC',
         visibility: master.visibility,
         fogDensity: master.fogDensity,
-        cameraFrame: camStream,
-        cameraFeed: camStream,
+        ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {}),
         updatedAt: master.updatedAt
       };
   }
@@ -524,6 +521,24 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
+      // 3. INGEST LOW-FREQUENCY DECOUPLED CAMERA VIDEO STREAM
+      if (parsed.type === 'SIM_CAMERA_FRAME' && ws.isSimBridge) {
+        lastSimHeartbeat = Date.now();
+        isLiveSimulationActive = true;
+        const frame = parsed.cameraFeed || parsed.cameraFrame || (parsed.payload && (parsed.payload.cameraFeed || parsed.payload.cameraFrame));
+        if (frame) {
+          masterTelemetry.cameraFrame = frame;
+          masterTelemetry.cameraFeed = frame;
+          // Broadcast dedicated camera frame to all connected browsers
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN && !client.isSimBridge && client.clientRole !== 'sim_bridge') {
+              client.send(JSON.stringify({ type: 'CAMERA_UPDATE', cameraFrame: frame, cameraFeed: frame }));
+            }
+          });
+        }
+        return;
+      }
+
       // Check role registration handshake
       if (parsed.role === 'sim_bridge' || parsed.source === 'sim_bridge') {
         ws.isSimBridge = true;
@@ -638,10 +653,13 @@ wss.on('connection', (ws, req) => {
 
 // Broadcast role-differentiated telemetry slice to all connected clients
 function broadcastTelemetry() {
+  // During high-rate live simulation (>= 30-40 Hz), omit heavy camera frames from TELEMETRY_UPDATE.
+  // Video is streamed concurrently via dedicated CAMERA_UPDATE packets at 8-10 Hz.
+  const includeCamera = !isLiveSimulationActive;
   wss.clients.forEach((client) => {
     // Only send browser updates to clients that are not the sim_bridge itself
     if (client.readyState === WebSocket.OPEN && !client.isSimBridge && client.clientRole !== 'sim_bridge') {
-      const slice = sliceTelemetryForRole(masterTelemetry, client.clientRole || 'guest');
+      const slice = sliceTelemetryForRole(masterTelemetry, client.clientRole || 'guest', includeCamera);
       client.send(JSON.stringify({ type: 'TELEMETRY_UPDATE', data: slice }));
     }
   });
