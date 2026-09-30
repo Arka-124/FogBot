@@ -147,6 +147,8 @@
     gap: 38.5,
     ttc: 5.6,
     eStop: false,
+    portalEstopLatched: false,
+    isLiveMode: false,
     status: 'AUTONOMOUS ESCORTING',
     hazardAlert: 'PILOT CORRIDOR CLEAR',
     cameraConfidence: 86,
@@ -320,6 +322,8 @@
               if (data.riskLevel) state.riskLevel = data.riskLevel;
               if (data.decision) state.riskLevel = data.decision;
               if (typeof data.eStop === 'boolean') state.eStop = data.eStop;
+              if (typeof data.portalEstopLatched === 'boolean') state.portalEstopLatched = data.portalEstopLatched;
+              if (typeof data.isLiveMode === 'boolean') state.isLiveMode = data.isLiveMode;
               if (typeof data.gap === 'number') state.gap = data.gap;
               if (typeof data.convoyGap === 'number') state.gap = data.convoyGap;
               if (typeof data.ttc === 'number') state.ttc = data.ttc;
@@ -426,11 +430,13 @@
       return;
     }
 
-    state.eStop = !state.eStop;
+    const nextState = !state.eStop;
+    state.eStop = nextState;
+    state.portalEstopLatched = nextState;
 
-    // Send action over WebSocket if open
+    // Send action over WebSocket if open with explicit state
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ action: 'ESTOP' }));
+      ws.send(JSON.stringify({ action: 'ESTOP', state: nextState }));
     } else {
       // Fallback REST call with JWT Bearer
       fetch('/api/telemetry/estop', {
@@ -438,7 +444,8 @@
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${sessionToken}`
-        }
+        },
+        body: JSON.stringify({ state: nextState })
       }).catch((err) => console.warn('[E-Stop REST Error]:', err));
     }
 
@@ -446,6 +453,12 @@
   }
 
   function handleFogSliderChange(e) {
+    // When live simulation is active, gate the fog slider from manual override
+    if (state.isLiveMode) {
+      e.preventDefault();
+      return;
+    }
+
     const val = Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0));
 
     // Field Worker cannot modify fog simulation
@@ -631,20 +644,39 @@
   // 8. RENDER FUNCTIONS
   // =========================================================================
   function updateUI() {
-    // 1. Top Bar Fog Badge & Slider sync
-    if (fogValBadge) fogValBadge.textContent = `${state.fogDensity}%`;
-    if (fogSlider && document.activeElement !== fogSlider) {
-      fogSlider.value = state.fogDensity;
+    // 1. Top Bar Fog Badge & Slider sync with Live-Mode Gating
+    if (state.isLiveMode) {
+      if (fogValBadge) {
+        fogValBadge.innerHTML = `${state.fogDensity}% <span style="font-size:0.65em;background:rgba(16,185,129,0.2);color:#34d399;padding:2px 5px;border-radius:4px;margin-left:4px;font-weight:700;">LIVE</span>`;
+      }
+      if (fogSlider) {
+        fogSlider.value = state.fogDensity;
+        fogSlider.disabled = true;
+        fogSlider.title = 'Live Gazebo Telemetry Active: Fog density is dynamically modulated by haul road elevation.';
+        fogSlider.classList.add('is-live-gated');
+      }
+    } else {
+      if (fogValBadge) fogValBadge.textContent = `${state.fogDensity}%`;
+      if (fogSlider) {
+        if (document.activeElement !== fogSlider) {
+          fogSlider.value = state.fogDensity;
+        }
+        fogSlider.disabled = (currentRole === 'field_worker');
+        fogSlider.title = currentRole === 'field_worker' ? 'Environmental simulation restricted to Dispatch/Admin.' : 'Simulate atmospheric fog density';
+        fogSlider.classList.remove('is-live-gated');
+      }
     }
 
-    // 2. E-Stop Button Visual State
+    // 2. E-Stop Button Visual State (Latched Portal E-Stop)
     if (btnEstop && (currentRole === 'admin' || currentRole === 'operator')) {
       if (state.eStop) {
         btnEstop.classList.add('is-active');
-        if (estopText) estopText.textContent = 'RESET E-STOP';
+        if (estopText) estopText.textContent = 'DISARM / RESET E-STOP';
+        btnEstop.title = 'Emergency Stop LATCHED active! Click to Disarm / Reset autonomous escort.';
       } else {
         btnEstop.classList.remove('is-active');
         if (estopText) estopText.textContent = 'EMERGENCY STOP';
+        btnEstop.title = 'Emergency Stop (Active Dispatch Control)';
       }
     }
 

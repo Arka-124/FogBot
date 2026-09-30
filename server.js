@@ -275,6 +275,8 @@ function updateMasterTelemetry() {
 function sliceTelemetryForRole(master, role, includeCamera = true) {
   const activeScanPoints = master.scanPoints || (scanPointsCache ? scanPointsCache.slice(0, 1500) : []);
   const camStream = includeCamera ? (master.cameraFrame || master.cameraFeed || null) : undefined;
+  const effectiveEstop = portalEstopLatched ? true : Boolean(master.eStop);
+
   switch (role) {
     case 'admin': {
       // 100% Unredacted: Full AI internals, scan points, formulas, diagnostics
@@ -283,6 +285,9 @@ function sliceTelemetryForRole(master, role, includeCamera = true) {
         role: 'admin',
         accessLevel: 'UNRESTRICTED_ADMIN',
         ...(includeCamera ? master : adminBase),
+        eStop: effectiveEstop,
+        isLiveMode: isLiveSimulationActive,
+        portalEstopLatched,
         scanPoints: activeScanPoints,
         ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {})
       };
@@ -296,6 +301,9 @@ function sliceTelemetryForRole(master, role, includeCamera = true) {
         role: 'operator',
         accessLevel: 'OPERATIONAL_DISPATCH',
         ...opData,
+        eStop: effectiveEstop,
+        isLiveMode: isLiveSimulationActive,
+        portalEstopLatched,
         scanPoints: activeScanPoints,
         ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {})
       };
@@ -308,19 +316,21 @@ function sliceTelemetryForRole(master, role, includeCamera = true) {
       return {
         role: 'field_worker',
         accessLevel: 'IN_CAB_HEADS_UP_DISPLAY',
-        decision: master.riskLevel, // 'SAFE' | 'CAUTION' | 'HIGH' (Flashing E-STOP)
-        recommendedSpeed: master.speedLimit,
-        currentSpeed: master.speed,
+        decision: effectiveEstop ? 'HIGH' : master.riskLevel, // 'SAFE' | 'CAUTION' | 'HIGH' (Flashing E-STOP)
+        recommendedSpeed: effectiveEstop ? 0.0 : master.speedLimit,
+        currentSpeed: effectiveEstop ? 0.0 : master.speed,
         gap: master.gap,
         convoyGap: master.gap,
         ttc: master.ttc,
-        hazardAlert: master.obstacleActive
-          ? `HAZARD: Forward Obstacle at ${master.obstacleDist}m (Sector 3B)`
-          : (master.eStop ? 'EMERGENCY BRAKE ENGAGED' : 'PILOT CORRIDOR CLEAR'),
+        hazardAlert: effectiveEstop
+          ? 'EMERGENCY BRAKE ENGAGED (LATCHED PORTAL HALT)'
+          : (master.obstacleActive ? `HAZARD: Forward Obstacle at ${master.obstacleDist}m (Sector 3B)` : 'PILOT CORRIDOR CLEAR'),
         visibility: master.visibility,
         fogDensity: master.fogDensity,
-        status: master.status,
-        eStop: master.eStop,
+        status: effectiveEstop ? 'EMERGENCY STOPPED' : master.status,
+        eStop: effectiveEstop,
+        isLiveMode: isLiveSimulationActive,
+        portalEstopLatched,
         zone: master.targetSite,
         leadUnit: master.roverId,
         trailingUnit: 'CAT 777D #04',
@@ -338,14 +348,16 @@ function sliceTelemetryForRole(master, role, includeCamera = true) {
         accessLevel: 'JUDGE_AUDIT_READ_ONLY',
         visibility: master.visibility,
         fogDensity: master.fogDensity,
-        riskLevel: master.riskLevel,
-        speedLimit: master.speedLimit,
-        speed: master.speed,
+        riskLevel: effectiveEstop ? 'HIGH' : master.riskLevel,
+        speedLimit: effectiveEstop ? 0.0 : master.speedLimit,
+        speed: effectiveEstop ? 0.0 : master.speed,
         gap: master.gap,
         convoyGap: master.gap,
         ttc: master.ttc,
-        status: master.status,
-        eStop: master.eStop,
+        status: effectiveEstop ? 'EMERGENCY STOPPED' : master.status,
+        eStop: effectiveEstop,
+        isLiveMode: isLiveSimulationActive,
+        portalEstopLatched,
         gps: master.gps,
         activeRovers: 1,
         connectedTrucks: 1,
@@ -363,6 +375,9 @@ function sliceTelemetryForRole(master, role, includeCamera = true) {
         accessLevel: 'MINIMAL_PUBLIC',
         visibility: master.visibility,
         fogDensity: master.fogDensity,
+        eStop: effectiveEstop,
+        isLiveMode: isLiveSimulationActive,
+        portalEstopLatched,
         ...(includeCamera ? { cameraFrame: camStream, cameraFeed: camStream } : {}),
         updatedAt: master.updatedAt
       };
@@ -418,6 +433,7 @@ function requireRole(allowedRoles = []) {
 const SIM_BRIDGE_SECRET = process.env.SIM_BRIDGE_SECRET || 'fogbot_secure_sim_token_2026';
 let isLiveSimulationActive = false;
 let lastSimHeartbeat = 0;
+let portalEstopLatched = false;
 
 wss.on('connection', (ws, req) => {
   // Extract token or role from query string (e.g., ws://host:port?token=... or ?role=sim_bridge)
@@ -486,13 +502,22 @@ wss.on('connection', (ws, req) => {
         const p = parsed.payload || parsed.data;
 
         if (p) {
+          // STEP 2: Enforce latched portal E-stop override
+          if (portalEstopLatched) {
+            p.estop = true;
+            p.eStop = true;
+            p.safeSpeed = 0.0;
+            p.roverSpeed = 0.0;
+          }
+
           Object.assign(masterTelemetry, p);
 
           // Harmonize field aliases across UI & role slices
-          if (typeof p.roverSpeed === 'number') masterTelemetry.speed = Math.round(p.roverSpeed * 10) / 10;
-          if (typeof p.safeSpeed === 'number') masterTelemetry.speedLimit = Math.round(p.safeSpeed * 10) / 10;
+          if (typeof p.roverSpeed === 'number') masterTelemetry.speed = portalEstopLatched ? 0.0 : Math.round(p.roverSpeed * 10) / 10;
+          if (typeof p.safeSpeed === 'number') masterTelemetry.speedLimit = portalEstopLatched ? 0.0 : Math.round(p.safeSpeed * 10) / 10;
           if (typeof p.convoyGap === 'number') masterTelemetry.gap = Math.round(p.convoyGap * 10) / 10;
-          if (typeof p.estop === 'boolean') masterTelemetry.eStop = p.estop;
+          masterTelemetry.eStop = portalEstopLatched ? true : Boolean(p.estop);
+          masterTelemetry.estop = masterTelemetry.eStop;
           if (p.cameraFeed && !p.cameraFrame) masterTelemetry.cameraFrame = p.cameraFeed;
           if (p.cameraFrame && !p.cameraFeed) masterTelemetry.cameraFeed = p.cameraFrame;
 
@@ -504,7 +529,7 @@ wss.on('connection', (ws, req) => {
           }
 
           if (masterTelemetry.eStop) {
-            masterTelemetry.status = 'EMERGENCY STOPPED';
+            masterTelemetry.status = portalEstopLatched ? 'EMERGENCY STOPPED (MANUAL PORTAL LATCH)' : 'EMERGENCY STOPPED';
           } else if (masterTelemetry.riskLevel === 'HIGH') {
             masterTelemetry.status = 'CRITICAL HAZARD SLOWDOWN';
           } else if (masterTelemetry.riskLevel === 'MEDIUM') {
@@ -560,17 +585,37 @@ wss.on('connection', (ws, req) => {
           }));
         }
 
-        masterTelemetry.eStop = !masterTelemetry.eStop;
+        // STEP 2: Latched Portal E-Stop logic
+        if (typeof parsed.state === 'boolean') {
+          portalEstopLatched = parsed.state;
+        } else {
+          portalEstopLatched = !portalEstopLatched;
+        }
+
+        masterTelemetry.eStop = portalEstopLatched;
+        masterTelemetry.estop = portalEstopLatched;
+
+        if (portalEstopLatched) {
+          masterTelemetry.speed = 0.0;
+          masterTelemetry.roverSpeed = 0.0;
+          masterTelemetry.safeSpeed = 0.0;
+          masterTelemetry.speedLimit = 0.0;
+          masterTelemetry.status = 'EMERGENCY STOPPED (MANUAL PORTAL LATCH)';
+        } else {
+          masterTelemetry.status = 'AUTONOMOUS ESCORTING';
+        }
+
         if (!isLiveSimulationActive) updateMasterTelemetry();
         broadcastTelemetry();
-        console.log(`[E-STOP] State toggled to ${masterTelemetry.eStop} by ${ws.clientUser} (${ws.clientRole})`);
+        console.log(`[E-STOP] Portal latched E-Stop set to ${portalEstopLatched} by ${ws.clientUser} (${ws.clientRole})`);
 
         // Forward action downstream to live simulation bridge if active
         wss.clients.forEach((client) => {
           if (client.isSimBridge && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ action: 'ESTOP', state: masterTelemetry.eStop }));
+            client.send(JSON.stringify({ action: 'ESTOP', state: portalEstopLatched }));
           }
         });
+        return;
       }
 
       if (parsed.action === 'SET_FOG') {
@@ -578,6 +623,14 @@ wss.on('connection', (ws, req) => {
           return ws.send(JSON.stringify({
             type: 'ACTION_REJECTED',
             error: `Forbidden: Role '${ws.clientRole}' cannot modify fog simulation density.`
+          }));
+        }
+
+        // Live-Mode Fog Slider Gating: in live simulation mode, atmospheric fog is driven by road elevation
+        if (isLiveSimulationActive && ws.clientRole !== 'admin') {
+          return ws.send(JSON.stringify({
+            type: 'ACTION_REJECTED',
+            error: 'Gated: Atmospheric fog is actively driven by elevation in live simulation mode. Admin override required.'
           }));
         }
 
@@ -594,6 +647,7 @@ wss.on('connection', (ws, req) => {
             }
           });
         }
+        return;
       }
 
       if (parsed.action === 'SWITCH_ROLE_DEMO') {
@@ -753,12 +807,39 @@ app.post('/api/telemetry/fog', requireRole(['admin', 'operator']), (req, res) =>
  * RBAC Protected: Only Admin & Operator can actuate Emergency Stop
  */
 app.post('/api/telemetry/estop', requireRole(['admin', 'operator']), (req, res) => {
-  masterTelemetry.eStop = !masterTelemetry.eStop;
-  updateMasterTelemetry();
+  if (typeof req.body.state === 'boolean') {
+    portalEstopLatched = req.body.state;
+  } else {
+    portalEstopLatched = !portalEstopLatched;
+  }
+
+  masterTelemetry.eStop = portalEstopLatched;
+  masterTelemetry.estop = portalEstopLatched;
+
+  if (portalEstopLatched) {
+    masterTelemetry.speed = 0.0;
+    masterTelemetry.roverSpeed = 0.0;
+    masterTelemetry.safeSpeed = 0.0;
+    masterTelemetry.speedLimit = 0.0;
+    masterTelemetry.status = 'EMERGENCY STOPPED (MANUAL PORTAL LATCH)';
+  } else {
+    masterTelemetry.status = 'AUTONOMOUS ESCORTING';
+  }
+
+  if (!isLiveSimulationActive) updateMasterTelemetry();
   broadcastTelemetry();
+
+  // Forward action downstream to live simulation bridge if active
+  wss.clients.forEach((client) => {
+    if (client.isSimBridge && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({ action: 'ESTOP', state: portalEstopLatched }));
+    }
+  });
+
   return res.json({
     success: true,
     eStop: masterTelemetry.eStop,
+    portalEstopLatched,
     status: masterTelemetry.status,
     actuatedBy: req.user.userId,
     role: req.user.role
